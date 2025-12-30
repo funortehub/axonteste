@@ -14493,170 +14493,288 @@ ${instruction}
 
     <script>
         // --- MOBILE 2.0 LOGIC REFORMULATED ---
+        // MOBILE 2.0 UNIFIED LOGIC - FIX v6 (Auth, List, Status, Global Flag)
         (function () {
-            // State
+            // --- STATE ---
             let isMobileModeActive = false;
+            let mobileListenersAttached = false;
+            let desktopListenerUnsubscribe = null;
 
-            // Elements
-            const container = document.getElementById('mobile-2-0-container');
+            // --- ELEMENTS ---
+            const container = document.querySelector('.mobile-2-0-wrapper'); // The wrapper
             const statusText = document.getElementById('mobile-status-text');
             const statusDot = document.getElementById('mobile-status-dot');
             const disconnectBtn = document.getElementById('mobile-disconnect-btn');
 
-            // Toggle Layout
-            window.updateMobile2Layout = () => {
-                const settings = window.globalSettings || {}; // access updated global settings
-                const isEnabled = settings.mobile2_0_enabled === true;
+            // --- CORE FUNCTIONS ---
 
-                // Use robust detection: window.isMobile (UserAgent) OR Width fallback
-                // Priority to UserAgent as per requirement to match legacy behavior
-                const isMobileUA = window.isMobile;
-                const isMobileWidth = window.innerWidth <= 1024;
+            // 1. Safe Modal Opener (Reparenting Fix + Styling)
+            const safeOpen = (modalId, displayType = 'flex') => {
+                const modal = document.getElementById(modalId);
+                if (!modal) return console.error(`[MobileFX] Modal ${modalId} not found`);
 
-                // If window.isMobile is undefined (module not loaded yet), fallback to width
-                const isMobileDevice = (typeof isMobileUA !== 'undefined') ? isMobileUA : isMobileWidth;
+                // Reparent to body if not already (Critical for z-index)
+                if (modal.parentNode !== document.body) {
+                    document.body.appendChild(modal);
+                }
 
-                // Check for Login Modal Availability
-                const loginModal = document.getElementById('login-modal');
-                // Consider logged in if modal is missing (removed) or hidden (display: none)
-                const isLoginHidden = !loginModal || (window.getComputedStyle(loginModal).display === 'none');
+                // Force visibility
+                modal.style.setProperty('display', displayType, 'important');
+                modal.style.setProperty('z-index', '9999999', 'important');
+                modal.style.setProperty('visibility', 'visible', 'important');
+                modal.style.setProperty('position', 'fixed', 'important');
+                modal.style.setProperty('top', '0', 'important');
+                modal.style.setProperty('left', '0', 'important');
+                modal.style.setProperty('width', '100%', 'important');
+                modal.style.setProperty('height', '100%', 'important');
+            };
 
-                // Logic: Must be Enabled + Mobile Device + Logged In
-                if (isEnabled && isMobileDevice && isLoginHidden) {
-                    if (!isMobileModeActive) {
-                        activateMobileMode();
+            // 2. Status Updater
+            const updateConnectionStatus = (desktopData) => {
+                if (!statusDot || !statusText) return;
+
+                const isConnected = desktopData && desktopData.timestamp && (new Date() - desktopData.timestamp.toDate() < 30000);
+
+                statusDot.className = isConnected ? 'status-dot-m2 active' : 'status-dot-m2';
+                statusDot.style.background = isConnected ? 'var(--m2-status-on)' : 'var(--m2-status-off)';
+
+                if (isConnected) {
+                    const isAxon = (desktopData.userAgent && desktopData.userAgent.toLowerCase().includes('axon')) || (desktopData.browser && desktopData.browser.toLowerCase().includes('axon'));
+                    if (isAxon) {
+                        statusText.innerHTML = `<span style="color: #68d391; border: 1px solid #68d391; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: rgba(104, 211, 145, 0.1);">CONECTADO VIA AXON USB</span>`;
+                    } else {
+                        statusText.textContent = `Conectado: ${desktopData.os} - ${desktopData.browser}`;
                     }
                 } else {
-                    if (isMobileModeActive) {
-                        deactivateMobileMode();
-                    }
+                    statusText.textContent = 'Desconectado';
                 }
             };
 
-            function activateMobileMode() {
-                const wrapper = document.getElementById('mobile-2-0-container');
-                if (!wrapper) return;
-
+            // 3. Activation Logic
+            window.activateMobileMode = () => {
+                if (isMobileModeActive) return;
                 isMobileModeActive = true;
-                // FORCE display with !important
-                wrapper.style.setProperty('display', 'flex', 'important');
-                wrapper.style.setProperty('opacity', '1', 'important');
-                wrapper.style.setProperty('visibility', 'visible', 'important');
-                wrapper.style.pointerEvents = 'auto';
-                document.body.classList.add('mobile-2-0-active');
+                window.isMobile = true; // Global Flag for other scripts
 
-                // Hide Desktop Elements
+                document.body.classList.add('mobile-2-0-active');
+                if (container) container.style.display = 'flex';
+
+                // Hide Desktop Main Stage
                 const mainStage = document.querySelector('.main-stage');
-                if (mainStage) mainStage.style.display = 'none';
+                if (mainStage) mainStage.style.setProperty('display', 'none', 'important');
+
+                // Header & Footer
                 const header = document.querySelector('.header-wrap');
-                if (header) header.style.display = 'none';
                 const footer = document.querySelector('.footer');
+                if (header) header.style.display = 'none';
                 if (footer) footer.style.display = 'none';
 
-                // Ensure theme icon sync
-                updateThemeIcon();
-            }
-
-            function deactivateMobileMode() {
-                const wrapper = document.getElementById('mobile-2-0-container');
-                if (!wrapper) return;
-                isMobileModeActive = false;
-                wrapper.style.display = 'none';
-                document.body.classList.remove('mobile-2-0-active');
-
-                // Restore Desktop Elements
-                const mainStage = document.querySelector('.main-stage');
-                if (mainStage) mainStage.style.display = 'grid';
-                const header = document.querySelector('.header-wrap');
-                if (header) header.style.display = 'flex';
-                const footer = document.querySelector('.footer');
-                if (footer) footer.style.display = 'block';
-            }
-
-            function updateThemeIcon() {
-                const toggle = document.getElementById('mobile-theme-toggle');
-                if (!toggle) return;
-                const icon = toggle.querySelector('i');
-                const isLight = document.body.classList.contains('light-mode');
-                // Desktop logic: Light Mode displays Moon icon (action: switch to Dark)
-                icon.className = isLight ? 'fas fa-moon' : 'fas fa-sun';
-            }
-
-            // Button Bindings
-            const bind = (id, target) => {
-                const btn = document.getElementById(id);
-                if (btn) btn.onclick = () => {
-                    const t = document.getElementById(target);
-                    if (t) t.click();
-                };
+                console.log("[MobileFX] Activated");
             };
 
-            // 1. Exames
-            bind('mobile-btn-exames', 'toggle-exams');
-            // 2. Axon Eye
-            bind('mobile-btn-see', 'toggle-axon-eye');
-            // 3. Records (Prontuários)
-            bind('mobile-btn-records', 'toggle-anamnesis');
+            window.deactivateMobileMode = () => {
+                isMobileModeActive = false;
+                window.isMobile = false;
 
-            // 4. Chat
-            const btnChat = document.getElementById('mobile-btn-chat');
-            if (btnChat) {
-                btnChat.onclick = () => {
-                    const modal = document.getElementById('chatbox-modal');
-                    if (modal) modal.style.display = 'flex';
-                };
-            }
+                document.body.classList.remove('mobile-2-0-active');
+                if (container) container.style.display = 'none';
 
-            // Settings
-            bind('mobile-settings-btn', 'settings-button');
+                const mainStage = document.querySelector('.main-stage');
+                if (mainStage) mainStage.style.removeProperty('display');
 
-            // Theme Toggle
-            const themeBtn = document.getElementById('mobile-theme-toggle');
-            if (themeBtn) {
-                themeBtn.onclick = () => {
-                    if (window.toggleTheme) window.toggleTheme();
-                    setTimeout(updateThemeIcon, 50);
-                };
-            }
+                const header = document.querySelector('.header-wrap');
+                const footer = document.querySelector('.footer');
+                if (header) header.style.display = '';
+                if (footer) footer.style.display = '';
 
-            // Logout
-            const mobileLogoutBtn = document.getElementById('mobile-logout-button');
-            if (mobileLogoutBtn) {
-                mobileLogoutBtn.onclick = () => {
-                    if (confirm("Deseja realmente sair?")) {
-                        if (window.logoutUser) window.logoutUser();
-                    }
-                };
-            }
+                if (desktopListenerUnsubscribe) {
+                    desktopListenerUnsubscribe();
+                    desktopListenerUnsubscribe = null;
+                }
+            };
 
-            // Disconnect Logic (Remote)
-            if (disconnectBtn) {
-                disconnectBtn.onclick = async () => {
-                    if (confirm("Deseja desconectar todos os dispositivos Desktop remotamente?")) {
-                        // Logic to write to Firestore to 'kick' other sessions
-                        if (typeof db !== 'undefined' && typeof addDoc !== 'undefined' && typeof collection !== 'undefined') {
+            // 4. Update Layout & Listeners
+            window.updateMobile2Layout = () => {
+                // Wait for Settings
+                if (typeof globalSettings === 'undefined' || !globalSettings) return;
+
+                // Feature Flag Check
+                if (globalSettings.mobile2_0_enabled === false) {
+                    if (isMobileModeActive) deactivateMobileMode();
+                    return;
+                }
+
+                // Device Check
+                const isMobileUA = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                const isMobileWidth = window.innerWidth <= 1024;
+                const isMobileLocal = isMobileUA || isMobileWidth;
+
+                if (!isMobileLocal) {
+                    if (isMobileModeActive) deactivateMobileMode();
+                    return;
+                }
+
+                // Auth Check
+                if (typeof firebase !== 'undefined' && firebase.auth()) {
+                    const user = firebase.auth().currentUser;
+                    if (user) {
+                        activateMobileMode();
+
+                        // Setup Status Listener (Robust Local Implementation)
+                        if (!desktopListenerUnsubscribe && typeof onSnapshot !== 'undefined' && typeof doc !== 'undefined' && typeof db !== 'undefined') {
                             try {
-                                await addDoc(collection(db, "commands"), {
-                                    command: "force_logout_desktop",
-                                    timestamp: new Date(),
-                                    origin: "mobile"
-                                });
-                                alert("Comando de desconexão enviado.");
-                            } catch (e) {
-                                console.error(e);
-                                alert("Erro ao enviar comando.");
-                            }
-                        } else {
-                            alert("Desconectado localmente (Simulação).");
+                                const userEmail = user.email || (typeof currentUser !== 'undefined' ? currentUser : null);
+                                if (userEmail) {
+                                    desktopListenerUnsubscribe = onSnapshot(doc(db, "sessions", userEmail), (docSnap) => {
+                                        if (docSnap.exists()) {
+                                            const data = docSnap.data();
+                                            if (data && data.desktopConnection) {
+                                                updateConnectionStatus(data.desktopConnection);
+                                            }
+                                        }
+                                    });
+                                }
+                            } catch (e) { console.error("[MobileFX] Status listener setup error:", e); }
                         }
+
+                    } else {
+                        deactivateMobileMode();
+                    }
+                } else {
+                    deactivateMobileMode();
+                }
+            };
+
+            // 5. Init Event Listeners
+            const initListeners = () => {
+                if (mobileListenersAttached) return;
+
+                // Buttons
+                const btnExames = document.getElementById('mobile-btn-exames');
+                const btnSee = document.getElementById('mobile-btn-see');
+                const btnRecords = document.getElementById('mobile-btn-records');
+                const btnSettings = document.getElementById('mobile-settings-btn');
+                const btnChat = document.getElementById('mobile-btn-chat');
+
+                if (btnExames) btnExames.onclick = () => safeOpen('camera-modal', 'flex');
+                if (btnSee) btnSee.onclick = () => safeOpen('camera-modal', 'flex');
+
+                // Patient List - Prevent Propagation Fix
+                if (btnRecords) {
+                    btnRecords.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        safeOpen('patient-list-modal', 'flex');
+                    });
+                }
+
+                // Admin Auth - Intercept & Custom Handling
+                if (btnSettings) {
+                    btnSettings.addEventListener('click', (e) => {
+                        // Open Auth Modal
+                        e.preventDefault();
+                        e.stopPropagation();
+                        safeOpen('admin-auth-modal', 'flex');
+
+                        // Focus Input
+                        const passInput = document.getElementById('admin-auth-pass');
+                        if (passInput) setTimeout(() => passInput.focus(), 100);
+                    });
+                }
+
+                // Admin Auth Submit Interceptor
+                const adminSubmitBtn = document.getElementById('admin-auth-button');
+                if (adminSubmitBtn) {
+                    // Use capture to ensure we handle it before any broken listeners
+                    adminSubmitBtn.addEventListener('click', (e) => {
+                        if (document.body.classList.contains('mobile-2-0-active')) {
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            const passInput = document.getElementById('admin-auth-pass');
+                            const feedback = document.getElementById('admin-auth-feedback');
+
+                            if (passInput && passInput.value === 'admin123') {
+                                // Close Auth
+                                const authModal = document.getElementById('admin-auth-modal');
+                                if (authModal) authModal.style.display = 'none';
+
+                                // Open Panel
+                                safeOpen('admin-panel-modal', 'flex');
+
+                                // Initialize Users Tab
+                                const usersTab = document.querySelector('.admin-tab-btn[data-tab="users"]');
+                                if (usersTab) usersTab.click();
+                                else if (typeof activateAdminTab !== 'undefined') activateAdminTab('users');
+
+                            } else {
+                                if (feedback) feedback.textContent = 'Senha incorreta.';
+                            }
+                        }
+                    }, true);
+                }
+
+                if (btnChat) btnChat.onclick = () => safeOpen('chatbox-modal', 'flex');
+
+                // Disconnect
+                if (disconnectBtn) disconnectBtn.onclick = () => {
+                    if (confirm("Desconectar desta sessão?")) {
+                        if (firebase && firebase.auth()) firebase.auth().signOut().then(() => window.location.reload());
                     }
                 };
-            }
 
-            // Init
-            window.addEventListener('resize', updateMobile2Layout);
-            setInterval(window.updateMobile2Layout, 1000); // Keep interval for layout checks
-            setTimeout(window.updateMobile2Layout, 500);
+                // Logout Header
+                const mobileLogoutBtn = document.getElementById('mobile-logout-button');
+                if (mobileLogoutBtn) {
+                    mobileLogoutBtn.onclick = () => {
+                        if (confirm("Deseja realmente sair?")) {
+                            if (firebase && firebase.auth()) firebase.auth().signOut().then(() => window.location.reload());
+                        }
+                    };
+                }
+
+                // Theme
+                const mobileThemeToggle = document.querySelector('.theme-switcher-m2');
+                const mobileThemeToggleId = document.getElementById('mobile-theme-toggle');
+
+                const toggleHandler = () => {
+                    if (window.toggleTheme) window.toggleTheme();
+                    // Update icon logic if needed (usually handled by main theme function)
+                };
+
+                if (mobileThemeToggleId) mobileThemeToggleId.onclick = toggleHandler;
+                else if (mobileThemeToggle) mobileThemeToggle.onclick = toggleHandler;
+
+                mobileListenersAttached = true;
+                console.log("[MobileFX] Listeners Attached");
+            };
+
+            // 6. Init Triggers
+            window.addEventListener('resize', window.updateMobile2Layout);
+
+            // Poll for Firebase Readiness
+            const initInterval = setInterval(() => {
+                if (typeof firebase !== 'undefined' && firebase.auth()) {
+                    clearInterval(initInterval);
+
+                    // Attach listeners
+                    initListeners();
+
+                    // Initial Layout Update
+                    window.updateMobile2Layout();
+
+                    // Auth Listener
+                    firebase.auth().onAuthStateChanged((user) => {
+                        window.updateMobile2Layout();
+                    });
+                }
+            }, 200);
+
+            // Fallback Init (in case firebase is slow or not used)
+            setTimeout(() => {
+                if (!mobileListenersAttached) initListeners();
+                window.updateMobile2Layout();
+            }, 1000);
 
         })();
     </script>
