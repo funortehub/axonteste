@@ -218,8 +218,7 @@
 
         /* Terminals and Panels Overwrite */
         .terminal {
-            @apply glass-panel;
-            /* Pseudo-code, actually applied via class or var */
+            /* @apply glass-panel; - removed invalid syntax */
             background: var(--glass-bg) !important;
             backdrop-filter: blur(20px) !important;
             border: 1px solid var(--glass-border) !important;
@@ -3987,8 +3986,22 @@
             width: 100%;
             height: 100%;
             background-color: rgba(0, 0, 0, 0.5);
-            justify-content: center;
             align-items: center;
+            justify-content: center;
+        }
+
+        .patient-details-modal {
+            display: none;
+            position: fixed;
+            z-index: 20000; /* Ensure it's on top of layout inputs */
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
         }
 
         .text-editor-content {
@@ -4599,6 +4612,308 @@
             color: var(--text-secondary);
             opacity: 0.6;
         }
+
+        /* ========== MODAL SALVOS - GALLIUM STYLE ========== */
+        #patient-list-modal .patient-list-content {
+            background: rgba(5, 5, 7, 0.95);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 0;
+            max-width: 900px;
+            width: 95%;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+
+        .salvos-header {
+            padding: 25px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .salvos-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .salvos-title i {
+            color: var(--highlight-color);
+        }
+
+        .salvos-tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 4px;
+            margin: 0 30px;
+        }
+
+        .salvos-tab {
+            padding: 10px 20px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 8px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .salvos-tab.active {
+            background: var(--highlight-color);
+            color: #000;
+        }
+
+        .salvos-tab:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .salvos-body {
+            padding: 25px 30px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .salvos-tab-content {
+            display: none;
+        }
+
+        .salvos-tab-content.active {
+            display: block;
+        }
+
+        .salvos-form-group {
+            margin-bottom: 20px;
+        }
+
+        .salvos-form-group label {
+            display: block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            letter-spacing: 0.05em;
+        }
+
+        .salvos-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px 15px;
+            color: #fff;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .salvos-input:focus {
+            outline: none;
+            border-color: var(--highlight-color);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1);
+        }
+
+        .salvos-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--highlight-color);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .salvos-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(56, 189, 248, 0.3);
+        }
+
+        .salvos-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .salvos-patient-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .salvos-patient-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: var(--highlight-color);
+        }
+
+        .salvos-patient-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .salvos-patient-info h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 4px;
+            font-size: 1.1rem;
+        }
+
+        .salvos-patient-info span {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .salvos-patient-meta {
+            text-align: right;
+        }
+
+        .salvos-patient-meta .date {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--highlight-color);
+        }
+
+        .salvos-patient-meta .consultations {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .salvos-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .salvos-action-btn {
+            padding: 8px 14px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-color);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .salvos-action-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .salvos-action-btn.delete {
+            border-color: rgba(248, 113, 113, 0.3);
+            color: var(--error-color);
+        }
+
+        .salvos-action-btn.delete:hover {
+            background: rgba(248, 113, 113, 0.2);
+        }
+
+        .salvos-action-btn.details {
+            border-color: rgba(56, 189, 248, 0.3);
+            color: var(--highlight-color);
+        }
+
+        .salvos-action-btn.details:hover {
+            background: rgba(56, 189, 248, 0.2);
+        }
+
+        .salvos-action-btn.pdf {
+            border-color: rgba(74, 222, 128, 0.3);
+            color: var(--success-color);
+        }
+
+        .salvos-action-btn.pdf:hover {
+            background: rgba(74, 222, 128, 0.2);
+        }
+
+        .salvos-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .salvos-empty i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .salvos-feedback {
+            margin-top: 15px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .salvos-feedback.success {
+            color: var(--success-color);
+        }
+
+        .salvos-feedback.error {
+            color: var(--error-color);
+        }
+
+        body.light-mode #patient-list-modal .patient-list-content {
+            background: rgba(255, 255, 255, 0.95);
+            border-color: rgba(0, 0, 0, 0.1);
+        }
+
+        body.light-mode .salvos-header {
+            border-bottom-color: rgba(0, 0, 0, 0.1);
+        }
+
+        body.light-mode .salvos-title {
+            color: #1a202c;
+        }
+
+        body.light-mode .salvos-tab {
+            color: #64748b;
+        }
+
+        body.light-mode .salvos-tab.active {
+            background: #3182ce;
+            color: #fff;
+        }
+
+        body.light-mode .salvos-input {
+            background: rgba(0, 0, 0, 0.05);
+            border-color: rgba(0, 0, 0, 0.1);
+            color: #1a202c;
+        }
+
+        body.light-mode .salvos-patient-card {
+            background: rgba(0, 0, 0, 0.02);
+            border-color: rgba(0, 0, 0, 0.08);
+        }
+
+        body.light-mode .salvos-patient-info h4 {
+            color: #1a202c;
+        }
     </style>
 </head>
 
@@ -4719,8 +5034,8 @@
                     <button class="fab-trigger" id="btn-exames" data-label="Exames"><i
                             class="fas fa-file-medical-alt"></i></button>
                     <button class="fab-trigger" id="btn-see" data-label="Axon Eye"><i class="fas fa-eye"></i></button>
-                    <button class="fab-trigger" id="btn-records" data-label="Prontuários"><i
-                            class="fas fa-book-medical"></i></button>
+                    <button class="fab-trigger" id="btn-salvos" data-label="Salvos"><i
+                            class="fas fa-user-check"></i></button>
 
                     <div class="input-pill">
                         <span style="color: var(--accent); font-weight: 800;">&gt;</span>
@@ -4821,16 +5136,54 @@
         </div>
     </div>
     <div id="patient-list-modal" class="patient-list-modal">
-        <div class="patient-list-content"><span class="patient-list-close">&times;</span>
-            <div class="patient-list-header">
-                <div class="patient-list-title">Pacientes Salvos</div>
+        <div class="patient-list-content">
+            <div class="salvos-header">
+                <div class="salvos-title">
+                    <i class="fas fa-user-check"></i>
+                    Pacientes Salvos
+                </div>
+                <span class="patient-list-close">&times;</span>
             </div>
-            <div class="patient-search-container"><input type="text" id="patient-search-input"
-                    class="patient-search-input" placeholder="Pesquisar paciente..."></div>
-            <div id="patient-list" class="patient-list"></div>
-            <div class="patient-list-footer"
-                style="margin-top:15px;padding-top:15px;border-top:1px solid var(--border-color)"><button
-                    id="btn-save-from-list" class="app-modal-button" style="width:100%">Salvar Consulta Atual</button>
+
+            <div class="salvos-tabs">
+                <button class="salvos-tab active" data-tab="lista">Lista</button>
+                <button class="salvos-tab" data-tab="salvar">Salvar Novo</button>
+                <button class="salvos-tab" data-tab="pesquisar">Pesquisar</button>
+            </div>
+
+            <div class="salvos-body">
+                <!-- Tab Lista -->
+                <div id="salvos-tab-lista" class="salvos-tab-content active">
+                    <div id="patient-list" class="patient-list"></div>
+                </div>
+
+                <!-- Tab Salvar -->
+                <div id="salvos-tab-salvar" class="salvos-tab-content">
+                    <div class="salvos-form-group">
+                        <label>Nome Completo do Paciente</label>
+                        <input type="text" id="salvos-patient-name" class="salvos-input"
+                            placeholder="Digite o nome completo...">
+                    </div>
+                    <div class="salvos-form-group">
+                        <label>Data de Nascimento (DD-MM-AAAA)</label>
+                        <input type="text" id="salvos-patient-dob" class="salvos-input" placeholder="Ex: 15-03-1985"
+                            maxlength="10">
+                    </div>
+                    <button id="salvos-save-btn" class="salvos-btn">
+                        <i class="fas fa-save"></i> Salvar Consulta Atual
+                    </button>
+                    <div id="salvos-feedback" class="salvos-feedback"></div>
+                </div>
+
+                <!-- Tab Pesquisar -->
+                <div id="salvos-tab-pesquisar" class="salvos-tab-content">
+                    <div class="salvos-form-group">
+                        <label>Pesquisar Paciente</label>
+                        <input type="text" id="salvos-search-input" class="salvos-input"
+                            placeholder="Digite o nome do paciente...">
+                    </div>
+                    <div id="salvos-search-results"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -5462,7 +5815,7 @@
         const btnHd = document.getElementById('btn-hd');
         const btnCd = document.getElementById('btn-cd');
         const btnMic = document.getElementById('btn-mic');
-        const btnRecords = document.getElementById('btn-records');
+        const btnSalvos = document.getElementById('btn-salvos');
         const btnClear = document.getElementById('btn-clear');
 
         const patientListModal = document.getElementById('patient-list-modal');
@@ -5472,8 +5825,16 @@
         const patientDetailsTitle = document.getElementById('patient-details-title');
         const patientDetailsBody = document.getElementById('patient-details-body');
         const patientDetailsClose = patientDetailsModal.querySelector('.patient-details-close');
-        const patientSearchInput = document.getElementById('patient-search-input');
-        const btnSaveFromList = document.getElementById('btn-save-from-list');
+
+        // Salvos Modal Elements
+        const salvosTabs = patientListModal.querySelectorAll('.salvos-tab');
+        const salvosTabContents = patientListModal.querySelectorAll('.salvos-tab-content');
+        const salvosPatientName = document.getElementById('salvos-patient-name');
+        const salvosPatientDob = document.getElementById('salvos-patient-dob');
+        const salvosSaveBtn = document.getElementById('salvos-save-btn');
+        const salvosFeedback = document.getElementById('salvos-feedback');
+        const salvosSearchInput = document.getElementById('salvos-search-input');
+        const salvosSearchResults = document.getElementById('salvos-search-results');
 
         const loginModal = document.getElementById('login-modal');
         const loginModalUser = document.getElementById('login-modal-user');
@@ -8040,8 +8401,10 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                 appendOutput("Você precisa estar logado.", "error");
                 return;
             }
-            savePatientButton.disabled = true;
-            savePatientFeedback.textContent = 'Salvando...';
+            salvosSaveBtn.disabled = true;
+            salvosSaveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+            salvosFeedback.textContent = '';
+            salvosFeedback.className = 'salvos-feedback';
 
             try {
                 const patientId = `${currentUser}_${patientName.replace(/\s+/g, '_').toLowerCase()}_${birthDate.replace(/\//g, '')}`;
@@ -8090,6 +8453,8 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                         lastUpdated: new Date()
                     });
                     appendOutput(`Nova consulta salva para '${patientName}'.`, "success");
+                    salvosFeedback.textContent = "Consulta salva com sucesso!";
+                    salvosFeedback.className = "salvos-feedback success";
                 } else {
                     await setDoc(patientRef, {
                         patientName,
@@ -8101,16 +8466,189 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                     });
 
                     appendOutput(`Paciente '${patientName}' e primeira consulta salvos com sucesso.`, "success");
+                    salvosFeedback.textContent = "Paciente salvo com sucesso!";
+                    salvosFeedback.className = "salvos-feedback success";
                 }
 
                 temporaryImgurUploads = [];
-                closeSaveModal();
+
+                // Reset inputs and switch to list after short delay
+                setTimeout(() => {
+                    salvosPatientName.value = '';
+                    salvosPatientDob.value = '';
+                    salvosFeedback.textContent = '';
+                    salvosSaveBtn.innerHTML = '<i class="fas fa-save"></i> Salvar Consulta Atual';
+                    loadPatientList();
+                    switchSalvosTab('lista');
+                }, 1500);
+
             } catch (e) {
                 appendOutput(`Erro ao salvar paciente: ${e.message}`, "error");
-                savePatientFeedback.textContent = `Erro: ${e.message}`;
+                salvosFeedback.textContent = `Erro: ${e.message}`;
+                salvosFeedback.className = "salvos-feedback error";
+                salvosSaveBtn.innerHTML = '<i class="fas fa-save"></i> Salvar Consulta Atual';
             } finally {
-                savePatientButton.disabled = false;
+                salvosSaveBtn.disabled = false;
             }
+        };
+
+        // Event Delegation for Patient List Actions
+        patientList.addEventListener('click', (e) => {
+            const target = e.target.closest('button');
+            if (!target) return;
+
+            const patientId = target.dataset.id;
+            if (!patientId) return;
+
+            if (target.classList.contains('delete')) {
+                deletePatient(patientId);
+            } else if (target.classList.contains('details')) {
+                // Find patient data
+                const patient = allPatients.find(p => p.id === patientId);
+                if (patient) showPatientDetails(patient);
+            } else if (target.classList.contains('pdf')) {
+                generatePatientPDF(patientId);
+            }
+        });
+
+        const searchPatients = (query) => {
+            if (!query) {
+                // Reset to full list or hide results container if using separate container
+                // But in this layout, we probably want to filter the MAIN list or show results in the search tab
+                // The current HTML has a separate 'salvos-search-results' for the search tab.
+                // However, users might expect the main list to filter too?
+                // The prompt requirements said "implement a search bar".
+                // In the new modal I put a search bar in a separate tab, but usually search bars filter the main list.
+                // Let's implement it for the "Pesquisar" tab specifically.
+                salvosSearchResults.innerHTML = '';
+                return;
+            }
+
+            const lowerQuery = query.toLowerCase();
+            const filtered = allPatients.filter(p =>
+                p.patientName.toLowerCase().includes(lowerQuery) ||
+                (p.birthDate && p.birthDate.includes(query))
+            );
+
+            salvosSearchResults.innerHTML = '';
+
+            if (filtered.length === 0) {
+                salvosSearchResults.innerHTML = '<div class="salvos-empty" style="padding: 20px;"><p>Nenhum paciente encontrado.</p></div>';
+            } else {
+                filtered.forEach(p => {
+                    const card = document.createElement('div');
+                    card.className = 'salvos-patient-card';
+                    card.innerHTML = `
+                        <div class="salvos-patient-top">
+                            <div class="salvos-patient-info">
+                                <h4>${p.patientName}</h4>
+                                <span><i class="fas fa-birthday-cake"></i> ${p.birthDate || 'N/A'}</span>
+                            </div>
+                            <div class="salvos-actions">
+                                <button class="salvos-action-btn details" onclick='tryShowDetails("${p.id}")'>
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    salvosSearchResults.appendChild(card);
+                });
+            }
+        };
+
+        // Helper for Search Results (since delegation is on patientList, search results needs its own or global)
+        window.tryShowDetails = (patientId) => {
+            const patient = allPatients.find(p => p.id === patientId);
+            if (patient) showPatientDetails(patient);
+        };
+
+        const showPatientDetails = (patient) => {
+            patientDetailsTitle.textContent = `Paciente: ${patient.patientName}`;
+            let detailsHTML = '';
+
+            const addDetailSection = (title, content) => {
+                if (!content || (typeof content === 'string' && !content.trim()) || (typeof content === 'object' && Object.values(content).every(v => !v))) return '';
+                let body = '';
+                if (title === 'ANAMNESE' && typeof content === 'object') {
+                    const order = ['qp', 'hma', 'hp', 'hf', 'hps', 'hgo', 'ha', 'ectoscopia', 'dados_vitais', 'exame_fisico'];
+                    body = order
+                        .map(key => {
+                            if (content.hasOwnProperty(key)) {
+                                if (key === 'exame_fisico' && typeof content[key] === 'object') {
+                                    const ef = content[key];
+                                    let efHtml = '<br><strong>EXAME FÍSICO:</strong><div style="padding-left: 10px; border-left: 2px solid var(--border-color); margin-left: 5px;">';
+                                    efHtml += `<div><strong>SCV:</strong> ${ef.scv || "Não informado"}</div>`;
+                                    efHtml += `<div><strong>SR:</strong> ${ef.sr || "Não informado"}</div>`;
+                                    efHtml += `<div><strong>SD:</strong> ${ef.sd || "Não informado"}</div>`;
+                                    if (ef.dermatologico) efHtml += `<div><strong>DERMATOLÓGICO:</strong> ${ef.dermatologico}</div>`;
+                                    efHtml += '</div><br>';
+                                    return efHtml;
+                                }
+                                if ((key === 'hgo' || key === 'ha') && !content[key]) return ''; // Skip empty conditional fields
+                                return `<strong>${key.toUpperCase()}:</strong> ${content[key] || "Não informado"}<br>`;
+                            }
+                            return '';
+                        })
+                        .join('');
+                } else if (typeof content === 'object') {
+                    body = Object.entries(content).map(([k, v]) => `<strong>${k.toUpperCase()}:</strong> ${v || "Não informado"}<br>`).join('');
+                } else {
+                    // Helper to format markdown bold
+                    const formatMarkdown = (text) => {
+                        if (!text) return text;
+                        return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+                    };
+                    body = formatMarkdown(content).replace(/\n/g, '<br>');
+                }
+                return `<div class="patient-details-section"><div class="patient-details-section-title">${title}</div><div>${body}</div></div>`;
+            };
+
+            if (patient.consultations && patient.consultations.length > 0) {
+                const sortedConsultations = [...patient.consultations]
+                    .filter(c => c.date && c.date.toDate)
+                    .sort((a, b) => b.date.toDate() - a.date.toDate());
+                detailsHTML += `<div class="consultation-list">`;
+                sortedConsultations.forEach((consult, index) => {
+                    const consultDate = consult.date ? consult.date.toDate().toLocaleString() : 'Data indisponível';
+                    detailsHTML += `<div class="consultation-item">
+                                        <div class="consultation-header">
+                                            <i class="fas fa-chevron-right"></i> Consulta de ${consultDate}
+                                        </div>
+                                        <div class="consultation-body" style="display: none;">
+                                            ${addDetailSection('ANAMNESE', consult.anamnesis)}
+                                            ${addDetailSection('RESULTADOS DOS EXAMES', consult.examsResults)}
+                                            ${addDetailSection('ANÁLISE VISUAL (AXON EYE)', consult.axonEyeResults)}`;
+                    if (consult.axonEyeImages && consult.axonEyeImages.length > 0) {
+                        detailsHTML += `<div class="patient-details-section"><div class="patient-details-section-title">IMAGENS (${consult.axonEyeImages.length})</div><div class="patient-images-grid">`;
+                        consult.axonEyeImages.forEach((img, i) => {
+                            // Passing global helper for image viewing
+                            detailsHTML += `<div class="patient-image-item">
+                                <img src="${img.link}" class="patient-image" 
+                                     onclick='const allImgs = ${JSON.stringify(consult.axonEyeImages)}; openFullscreenModal("${img.link}", ${i}, allImgs)' 
+                                     alt="Imagem do paciente">
+                            </div>`;
+                        });
+                        detailsHTML += `</div></div>`;
+                    }
+                    detailsHTML += `</div></div>`;
+                });
+                detailsHTML += `</div>`;
+            } else {
+                detailsHTML = '<div class="info">Nenhuma consulta registrada para este paciente.</div>';
+            }
+            patientDetailsBody.innerHTML = detailsHTML;
+
+            // Event listeners are handled by global delegation on patientDetailsModal
+
+            patientDetailsModal.style.display = 'flex';
+        };
+
+        const openSaveModal = () => {
+            // Redundant now, integrated into 'Salvos' tab
+        };
+
+        const closeSaveModal = () => {
+            // Redundant
         };
 
         const loadPatientList = async () => {
@@ -8132,42 +8670,72 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
 
                 patientList.innerHTML = '';
                 if (allPatients.length === 0) {
-                    patientList.innerHTML = '<div class="info">Nenhum paciente salvo.</div>';
+                    patientList.innerHTML = `
+                        <div class="salvos-empty">
+                            <i class="fas fa-user-slash"></i>
+                            <p>Nenhum paciente salvo ainda.</p>
+                            <p style="font-size: 0.85rem; opacity: 0.7;">Use a aba "Salvar Novo" para adicionar um paciente.</p>
+                        </div>`;
                 } else {
                     allPatients.forEach(p => {
                         const hasConsultations = p.consultations && p.consultations.length > 0;
+                        const consultCount = hasConsultations ? p.consultations.length : 0;
 
-                        let lastConsultDateStr = 'Nenhuma consulta registrada';
+                        let lastConsultDateStr = 'Sem consultas';
+                        let savedDateStr = 'Data desconhecida';
+
+                        if (p.createdAt && p.createdAt.toDate) {
+                            savedDateStr = p.createdAt.toDate().toLocaleString('pt-BR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                        }
+
                         if (hasConsultations) {
                             const mostRecentConsult = p.consultations
                                 .filter(c => c.date && c.date.toDate)
                                 .sort((a, b) => b.date.toDate() - a.date.toDate())[0];
                             if (mostRecentConsult) {
-                                lastConsultDateStr = mostRecentConsult.date.toDate().toLocaleString();
+                                lastConsultDateStr = mostRecentConsult.date.toDate().toLocaleString('pt-BR', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                });
                             }
                         }
 
-                        const item = document.createElement('div');
-                        item.className = 'patient-item';
-                        item.dataset.patientId = p.id;
-                        item.innerHTML = `<div><strong>${p.patientName}</strong> - ${p.birthDate || 'N/A'}</div>
-                                          <div style="font-size: 12px; color: var(--text-color); opacity: 0.7;">Última consulta: ${lastConsultDateStr}</div>
-                                          <div class="patient-actions">
-                                            <button class="patient-action-button delete" data-id="${p.id}"><i class="fas fa-trash"></i> Excluir</button>
-                                            <button class="patient-action-button details ${!hasConsultations ? 'disabled' : ''}" data-id="${p.id}"><i class="fas fa-eye"></i> Detalhes</button>
-                                            <button class="patient-action-button pdf ${!hasConsultations ? 'disabled' : ''}" data-id="${p.id}"><i class="fas fa-file-pdf"></i> PDF</button>
-                                          </div>`;
-                        patientList.appendChild(item);
+                        const card = document.createElement('div');
+                        card.className = 'salvos-patient-card';
+                        card.dataset.patientId = p.id;
+                        card.innerHTML = `
+                            <div class="salvos-patient-top">
+                                <div class="salvos-patient-info">
+                                    <h4>${p.patientName}</h4>
+                                    <span><i class="fas fa-birthday-cake" style="margin-right: 5px;"></i>${p.birthDate || 'N/A'}</span>
+                                </div>
+                                <div class="salvos-patient-meta">
+                                    <div class="date"><i class="fas fa-clock" style="margin-right: 4px;"></i>${savedDateStr}</div>
+                                    <div class="consultations">${consultCount} consulta${consultCount !== 1 ? 's' : ''}</div>
+                                </div>
+                            </div>
+                            <div class="salvos-actions">
+                                <button class="salvos-action-btn details ${!hasConsultations ? 'disabled' : ''}" data-id="${p.id}">
+                                    <i class="fas fa-eye"></i> Detalhes
+                                </button>
+                                <button class="salvos-action-btn pdf ${!hasConsultations ? 'disabled' : ''}" data-id="${p.id}">
+                                    <i class="fas fa-file-pdf"></i> PDF
+                                </button>
+                                <button class="salvos-action-btn delete" data-id="${p.id}">
+                                    <i class="fas fa-trash"></i> Excluir
+                                </button>
+                            </div>`;
+                        patientList.appendChild(card);
                     });
-                }
-
-                const saveButtonFooter = patientListModal.querySelector('.patient-list-footer');
-                if (saveButtonFooter) {
-                    if (isMobile && globalSettings.mobile2_0_enabled) {
-                        saveButtonFooter.style.display = 'none';
-                    } else {
-                        saveButtonFooter.style.display = 'block';
-                    }
                 }
 
                 patientListModal.style.display = 'flex';
@@ -8317,110 +8885,9 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
             appendOutput(`PDF da sessão atual gerado com sucesso.`, "success");
         };
 
-        const showPatientDetails = (patient) => {
-            patientDetailsTitle.textContent = `Paciente: ${patient.patientName}`;
-            let detailsHTML = '';
 
-            const addDetailSection = (title, content) => {
-                if (!content || (typeof content === 'string' && !content.trim()) || (typeof content === 'object' && Object.values(content).every(v => !v))) return '';
-                let body = '';
-                if (title === 'ANAMNESE' && typeof content === 'object') {
-                    const order = ['qp', 'hma', 'hp', 'hf', 'hps', 'hgo', 'ha', 'ectoscopia', 'dados_vitais', 'exame_fisico'];
-                    body = order
-                        .map(key => {
-                            if (content.hasOwnProperty(key)) {
-                                if (key === 'exame_fisico' && typeof content[key] === 'object') {
-                                    const ef = content[key];
-                                    let efHtml = '<br><strong>EXAME FÍSICO:</strong><div style="padding-left: 10px; border-left: 2px solid var(--border-color); margin-left: 5px;">';
-                                    efHtml += `<div><strong>SCV:</strong> ${ef.scv || "Não informado"}</div>`;
-                                    efHtml += `<div><strong>SR:</strong> ${ef.sr || "Não informado"}</div>`;
-                                    efHtml += `<div><strong>SD:</strong> ${ef.sd || "Não informado"}</div>`;
-                                    if (ef.dermatologico) efHtml += `<div><strong>DERMATOLÓGICO:</strong> ${ef.dermatologico}</div>`;
-                                    efHtml += '</div><br>';
-                                    return efHtml;
-                                }
-                                if ((key === 'hgo' || key === 'ha') && !content[key]) return ''; // Skip empty conditional fields
-                                return `<strong>${key.toUpperCase()}:</strong> ${content[key] || "Não informado"}<br>`;
-                            }
-                            return '';
-                        })
-                        .join('');
-                } else if (typeof content === 'object') {
-                    body = Object.entries(content).map(([k, v]) => `<strong>${k.toUpperCase()}:</strong> ${v || "Não informado"}<br>`).join('');
-                } else {
-                    // Helper to format markdown bold
-                    const formatMarkdown = (text) => {
-                        if (!text) return text;
-                        return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-                    };
-                    body = formatMarkdown(content).replace(/\n/g, '<br>');
-                }
-                return `<div class="patient-details-section"><div class="patient-details-section-title">${title}</div><div>${body}</div></div>`;
-            };
 
-            if (patient.consultations && patient.consultations.length > 0) {
-                const sortedConsultations = [...patient.consultations]
-                    .filter(c => c.date && c.date.toDate)
-                    .sort((a, b) => b.date.toDate() - a.date.toDate());
-                detailsHTML += `<div class="consultation-list">`;
-                sortedConsultations.forEach((consult, index) => {
-                    const consultDate = consult.date ? consult.date.toDate().toLocaleString() : 'Data indisponível';
-                    detailsHTML += `<div class="consultation-item">
-                                        <div class="consultation-header">
-                                            <i class="fas fa-chevron-right"></i> Consulta de ${consultDate}
-                                        </div>
-                                        <div class="consultation-body" style="display: none;">
-                                            ${addDetailSection('ANAMNESE', consult.anamnesis)}
-                                            ${addDetailSection('RESULTADOS DOS EXAMES', consult.examsResults)}
-                                            ${addDetailSection('ANÁLISE VISUAL (AXON EYE)', consult.axonEyeResults)}`;
-                    if (consult.axonEyeImages && consult.axonEyeImages.length > 0) {
-                        detailsHTML += `<div class="patient-details-section"><div class="patient-details-section-title">IMAGENS (${consult.axonEyeImages.length})</div><div class="patient-images-grid">`;
-                        // Serialize images array for the modal context (careful with quotes)
-                        const imagesJson = JSON.stringify(consult.axonEyeImages).replace(/"/g, '&quot;');
 
-                        consult.axonEyeImages.forEach((img, i) => {
-                            // Pass 'this', index, and the full array to the modal
-                            /* 
-                               We'll use a globally accessible helper or pass the array directly? 
-                               Passing complex JSON in onclick is messy. 
-                               Better: Store the images in a global map using a consultation ID or just pass them if small.
-                               Let's pass via function arguments using the previously serialized JSON, parsed on the fly? 
-                               Or simpler: `openFullscreenModal(url, index, ${imagesJson})` - risky if too large.
-                               
-                               Best approach given constraints:
-                               Assign this consultation's images to a window variable temporarily on click? 
-                               No, let's just use the robust `data-all-images` attribute.
-                            */
-                            detailsHTML += `<div class="patient-image-item">
-                                <img src="${img.link}" class="patient-image" 
-                                     data-index="${i}"
-                                     onclick='const allImgs = ${JSON.stringify(consult.axonEyeImages)}; openFullscreenModal("${img.link}", ${i}, allImgs)' 
-                                     alt="Imagem do paciente">
-                            </div>`;
-                        });
-                        detailsHTML += `</div></div>`;
-                    }
-                    detailsHTML += `</div></div>`;
-                });
-                detailsHTML += `</div>`;
-            } else {
-                detailsHTML = '<div class="info">Nenhuma consulta registrada para este paciente.</div>';
-            }
-            patientDetailsBody.innerHTML = detailsHTML;
-            patientDetailsModal.style.display = 'flex';
-        };
-
-        const openSaveModal = () => {
-            savePatientNameInput.value = '';
-            savePatientDobInput.value = '';
-            savePatientFeedback.textContent = '';
-            savePatientModal.style.display = 'flex';
-            savePatientNameInput.focus();
-        };
-
-        const closeSaveModal = () => {
-            savePatientModal.style.display = 'none';
-        };
 
         const handleSuccessfulLogin = (username, isRestoredSession = false) => {
             isLoggedIn = true; currentUser = username; localStorage.setItem('axon_logged_in_user', username);
@@ -8496,33 +8963,7 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
             toggleMonitorView('anamnesis');
         };
 
-        const searchPatients = (searchTerm) => {
-            const lowerCaseSearchTerm = searchTerm.toLowerCase();
-            const patientItems = patientList.querySelectorAll('.patient-item');
-            let visibleCount = 0;
 
-            patientItems.forEach(item => {
-                const patientName = item.querySelector('strong')?.textContent.toLowerCase();
-                if (patientName && patientName.includes(lowerCaseSearchTerm)) {
-                    item.style.display = 'block';
-                    visibleCount++;
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-
-            const noResultsMessage = patientList.querySelector('.info');
-            if (noResultsMessage) {
-                noResultsMessage.remove();
-            }
-
-            if (visibleCount === 0 && patientItems.length > 0) {
-                const noResults = document.createElement('div');
-                noResults.className = 'info';
-                noResults.textContent = 'Nenhum paciente encontrado.';
-                patientList.appendChild(noResults);
-            }
-        };
 
         const openAdminAuth = () => {
             adminAuthPass.value = '';
@@ -10692,21 +11133,72 @@ ${instruction}
             });
         }
 
-        btnRecords.addEventListener('click', () => checkBlockedAndExecute(() => processCommand('/load')));
+        // Salvos Button - Opens the modal
+        btnSalvos.addEventListener('click', () => checkBlockedAndExecute(() => {
+            loadPatientList();
+            switchSalvosTab('lista');
+        }));
+
         btnClear.addEventListener('click', () => checkBlockedAndExecute(() => {
             resetSession();
             if (typeof updateFreeModeUI === 'function') updateFreeModeUI(false); // Fix Free Mode Mix Bug
         }));
         btnMic.addEventListener('click', () => checkBlockedAndExecute(() => processCommand(isListening ? '/hear off' : '/hear on')));
-        btnSaveFromList.addEventListener('click', () => {
+
+        // Salvos Tab Navigation
+        const switchSalvosTab = (tabName) => {
+            salvosTabs.forEach(tab => {
+                if (tab.dataset.tab === tabName) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+            salvosTabContents.forEach(content => {
+                if (content.id === `salvos-tab-${tabName}`) {
+                    content.classList.add('active');
+                } else {
+                    content.classList.remove('active');
+                }
+            });
+        };
+
+        salvosTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                switchSalvosTab(tab.dataset.tab);
+            });
+        });
+
+        // Salvos Save Button
+        salvosSaveBtn.addEventListener('click', async () => {
             if (isUserBlocked) {
-                appendOutput("Sua conta foi bloqueada! Funcionalidade indisponível.", "highlight");
-                patientListModal.style.display = 'none';
+                salvosFeedback.textContent = "Sua conta foi bloqueada!";
+                salvosFeedback.className = "salvos-feedback error";
                 return;
             }
-            patientListModal.style.display = 'none';
-            openSaveModal();
+
+            const patientName = salvosPatientName.value.trim();
+            const birthDate = salvosPatientDob.value.trim();
+
+            if (!patientName || !birthDate) {
+                salvosFeedback.textContent = "Preencha todos os campos.";
+                salvosFeedback.className = "salvos-feedback error";
+                return;
+            }
+
+            // Validate date format DD-MM-AAAA
+            const dateRegex = /^\d{2}-\d{2}-\d{4}$/;
+            if (!dateRegex.test(birthDate)) {
+                salvosFeedback.textContent = "Data inválida. Use o formato DD-MM-AAAA.";
+                salvosFeedback.className = "salvos-feedback error";
+                return;
+            }
+
+            await savePatient(patientName, birthDate);
         });
+
+        // Salvos Search
+        salvosSearchInput.addEventListener('input', (e) => searchPatients(e.target.value));
 
         // Transfer Logic
         const CHUNK_SIZE = 900 * 1024; // 900KB safe limit for Firestore
@@ -10973,7 +11465,7 @@ ${instruction}
 
         patientListClose.addEventListener('click', () => patientListModal.style.display = 'none');
         patientDetailsClose.addEventListener('click', () => patientDetailsModal.style.display = 'none');
-        patientSearchInput.addEventListener('input', (e) => searchPatients(e.target.value));
+
 
         loginModalButton.addEventListener('click', async () => {
             const username = loginModalUser.value.trim(), password = loginModalPass.value.trim();
@@ -13882,6 +14374,76 @@ ${instruction}
                 });
             }
         });
+
+        // --- FILE MANAGEMENT HELPERS (Salvos System) ---
+        window.moveInSupabase = async (fromPath, toPath) => {
+            try {
+                const bucket = globalSettings.supabaseBucket || 'axon-drive';
+                const url = `${globalSettings.supabaseUrl}/storage/v1/object/move`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${globalSettings.supabaseKey}`,
+                        'apikey': globalSettings.supabaseKey,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        bucketId: bucket,
+                        sourceKey: fromPath,
+                        destinationKey: toPath
+                    })
+                });
+                return response.ok;
+            } catch (e) {
+                console.error("Error moving file in Supabase:", e);
+                return false;
+            }
+        };
+
+        window.deleteAxonEyeImage = async (img) => {
+            if (!img) return;
+            try {
+                if (img.provider === 'supabase') {
+                    const bucket = globalSettings.supabaseBucket || 'axon-drive';
+                    // Extract path from link or deleteHash if available
+                    // If using deleteHash as the path buffer (as per savePatient logic)
+                    let path = img.deleteHash;
+
+                    // If path is a FULL URL, try to extract relative path
+                    if (path && path.startsWith('http')) {
+                        // Attempt to extract after /public/bucket/
+                        const parts = path.split(`/${bucket}/`);
+                        if (parts.length > 1) path = parts[1];
+                    }
+
+                    if (!path) return;
+
+                    const url = `${globalSettings.supabaseUrl}/storage/v1/object/${bucket}/${path}`;
+                    await fetch(url, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${globalSettings.supabaseKey}`,
+                            'apikey': globalSettings.supabaseKey
+                        }
+                    });
+                } else {
+                    // Imgur Logic
+                    if (img.deleteHash) {
+                        // Assuming IMGUR_CLIENT_ID is globally available as per env vars
+                        // If not, we try to use a hardcoded fallback or skip
+                        const clientId = (typeof IMGUR_CLIENT_ID !== 'undefined') ? IMGUR_CLIENT_ID : 'd066bf9167cb40d';
+                        await fetch(`https://api.imgur.com/3/image/${img.deleteHash}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Authorization': `Client-ID ${clientId}`
+                            }
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error("Error deleting image:", e);
+            }
+        };
     </script>
     <script>
         // Gallium Ripple Effect
