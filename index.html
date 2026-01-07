@@ -2854,66 +2854,99 @@
         }
 
         .confirm-modal {
-            display: none;
             position: fixed;
-            z-index: 3000;
             left: 0;
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, .6);
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none;
             justify-content: center;
-            align-items: center
+            align-items: center;
+            z-index: 10000000;
+            /* Super high z-index to beat mobile container (999999) */
+            backdrop-filter: blur(5px);
         }
 
         .confirm-modal-content {
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            padding: 30px;
-            border: 1px solid var(--glass-border);
-            border-radius: 16px;
+            background: var(--m2-gallium-base);
+            /* Adapts to theme */
+            color: var(--m2-text-primary);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            padding: 35px 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            /* More rounded */
             width: 90%;
-            max-width: 400px;
-            box-shadow: var(--glass-shadow);
-            text-align: center
+            max-width: 380px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            color: white;
+            animation: modalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes modalPop {
+            0% {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
         }
 
         #confirm-modal-text {
-            margin-bottom: 25px;
-            font-size: 16px;
-            line-height: 1.6
+            margin-bottom: 30px;
+            font-size: 17px;
+            line-height: 1.5;
+            color: var(--m2-text-primary);
+            font-weight: 500;
         }
 
         .confirm-modal-buttons {
             display: flex;
             gap: 15px;
-            justify-content: center
+            justify-content: center;
         }
 
         .confirm-btn {
-            padding: 10px 20px;
+            padding: 12px 24px;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             cursor: pointer;
-            font-weight: 700;
-            font-size: 14px;
-            transition: background-color .2s, transform .1s
+            font-weight: 600;
+            font-size: 15px;
+            transition: all 0.2s ease;
+            flex: 1;
         }
 
         .confirm-btn:active {
-            transform: scale(.97)
+            transform: scale(0.95);
         }
 
         #confirm-btn-yes {
-            background-color: var(--error-color);
-            color: #fff
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
+        }
+
+        #confirm-btn-yes:hover {
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.6);
+            transform: translateY(-2px);
         }
 
         #confirm-btn-no {
-            background-color: var(--button-bg);
-            color: var(--text-color);
-            border: 1px solid var(--border-color)
+            background: var(--m2-btn-bg);
+            color: var(--m2-text-primary);
+            border: 1px solid var(--m2-surface-edge);
+        }
+
+        #confirm-btn-no:hover {
+            filter: brightness(1.1);
+            color: var(--m2-text-primary);
         }
 
         /* Fix for Button Overflow */
@@ -5402,7 +5435,8 @@
         </div>
     </div>
     <script type="module">import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, doc, getDoc, setDoc, updateDoc, deleteDoc, getDocs, where, increment, writeBatch, collectionGroup } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, doc, getDoc, setDoc, updateDoc, deleteDoc, getDocs, where, increment, writeBatch, collectionGroup, deleteField } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyA4bis9CVQkl1eJDfezsvUKTx1X_kFVT4M",
@@ -5415,6 +5449,24 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+
+        // Expose to window for external scripts (Mobile 2.0 IIFE)
+        window.db = db;
+        window.deleteDoc = deleteDoc;
+        window.doc = doc;
+        window.collection = collection;
+        window.onSnapshot = onSnapshot;
+        window.setDoc = setDoc;
+        window.getDoc = getDoc;
+        window.updateDoc = updateDoc;
+        window.deleteField = deleteField;
+
+        // Expose Auth similarly to legacy SDK for compatibility
+        const auth = getAuth(app);
+        window.auth = auth;
+        window.firebase = {
+            auth: () => auth
+        };
 
         const commandInput = document.getElementById('command-input');
         const interactiveOutput = document.getElementById('interactive-output');
@@ -8425,6 +8477,7 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
 
         const handleSuccessfulLogin = (username, isRestoredSession = false) => {
             isLoggedIn = true; currentUser = username; localStorage.setItem('axon_logged_in_user', username);
+            window.currentUser = username; // Expose to window for external scripts
             loginModal.style.display = 'none';
             if (isRestoredSession) appendOutput(`Sessão restaurada para: ${currentUser}`, "success", false);
             else appendOutput(`Login bem-sucedido. Bem-vindo, ${currentUser}.`, "success", false);
@@ -8447,7 +8500,30 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                     }
                 };
                 updateDesktopStatus();
-                desktopHeartbeatInterval = setInterval(updateDesktopStatus, 15000);
+                desktopHeartbeatInterval = setInterval(updateDesktopStatus, 2000);
+
+                // --- REMOTE DISCONNECT LISTENER ---
+                // Stop previous listener if any
+                if (window.sessionDisconnectListener) window.sessionDisconnectListener();
+
+                let hasSessionExisted = false;
+                try {
+                    window.sessionDisconnectListener = onSnapshot(doc(db, "sessions", currentUser), (docSnap) => {
+                        if (docSnap.exists()) {
+                            hasSessionExisted = true;
+                        } else if (hasSessionExisted && !docSnap.exists()) {
+                            // Session deleted remotely
+                            console.warn("Session disconnected remotely. Logout triggered.");
+                            if (window.desktopHeartbeatInterval) clearInterval(window.desktopHeartbeatInterval);
+                            if (firebase && firebase.auth()) {
+                                firebase.auth().signOut().then(() => window.location.reload());
+                            } else {
+                                window.location.reload();
+                            }
+                        }
+                    });
+                } catch (e) { console.error("Session listener error:", e); }
+                // ----------------------------------
             }
 
             if (unsubscribeUserDoc) {
@@ -9559,17 +9635,28 @@ ${instruction}
             modal.style.display = 'flex';
 
             return new Promise((resolve) => {
-                btnYes.onclick = () => {
+                const handleYes = () => {
                     modal.style.display = 'none';
                     if (onConfirm) onConfirm();
                     resolve(true);
+                    cleanup();
                 };
-                btnNo.onclick = () => {
+                const handleNo = () => {
                     modal.style.display = 'none';
                     resolve(false);
+                    cleanup();
                 };
+
+                const cleanup = () => {
+                    btnYes.onclick = null;
+                    btnNo.onclick = null;
+                }
+
+                btnYes.onclick = handleYes;
+                btnNo.onclick = handleNo;
             });
         };
+        window.showConfirmModal = showConfirmModal;
 
         const appendChatMessage = (message, sender, isTyping = false, images = []) => {
             const messageWrapper = document.createElement('div');
@@ -14063,7 +14150,7 @@ ${instruction}
         }
 
         /* Aggressive Hide for Desktop Elements */
-        body.mobile-2-0-active>*:not(.mobile-2-0-wrapper):not(#mobile-debug-hud):not(script):not(style) {
+        body.mobile-2-0-active>*:not(.mobile-2-0-wrapper):not(#mobile-debug-hud):not(script):not(style):not(#custom-confirm-modal) {
             display: none !important;
         }
 
@@ -14261,6 +14348,47 @@ ${instruction}
             background: var(--m2-status-on);
             box-shadow: 0 0 12px var(--m2-status-on);
             animation: pulse 2s infinite;
+        }
+
+        /* Status dot classes matching axonantigo.html style */
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--m2-status-off);
+            box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15);
+            flex-shrink: 0;
+        }
+
+        .status-dot.status-on {
+            background: var(--m2-status-on);
+            box-shadow: 0 0 10px var(--m2-status-on), 0 0 0 3px rgba(16, 185, 129, 0.2);
+            animation: pulse-status 2s infinite;
+        }
+
+        @keyframes pulse-status {
+            0% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+
+        .axon-usb-badge {
+            color: #68d391;
+            border: 1px solid #68d391;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: bold;
+            background: rgba(104, 211, 145, 0.1);
+            font-size: 11px;
+            letter-spacing: 0.5px;
         }
 
         @keyframes pulse {
@@ -14482,9 +14610,10 @@ ${instruction}
             </div>
 
             <div class="mobile-connection-status">
-                <div class="status-pill">
-                    <div id="mobile-status-dot" class="status-dot-m2 active"></div>
-                    <span id="mobile-status-text">Desktop Conectado</span>
+                <div id="mobile-connection-status-inner" class="status-pill"
+                    style="display:flex;align-items:center;justify-content:center;gap:8px">
+                    <div id="mobile-status-dot" class="status-dot"></div>
+                    <span id="mobile-status-text">Verificando conexão...</span>
                 </div>
                 <small id="mobile-disconnect-btn" class="logout-hint"
                     style="margin-top: 8px; color: var(--danger); font-weight:bold;">
@@ -14532,38 +14661,65 @@ ${instruction}
                 modal.style.setProperty('height', '100%', 'important');
             };
 
-            // 2. Status Updater
-            // 2. Status Updater
+            // 2. Desktop Info Detection (from axonantigo.html)
+            const getDesktopInfo = () => {
+                const ua = navigator.userAgent;
+                let os = 'OS Desconhecido';
+                let browser = 'Navegador Desconhecido';
+
+                // OS Detection
+                if (navigator.appVersion.indexOf("Win") != -1) os = "Windows";
+                if (navigator.appVersion.indexOf("Mac") != -1) os = "macOS";
+                if (navigator.appVersion.indexOf("X11") != -1) os = "UNIX";
+                if (navigator.appVersion.indexOf("Linux") != -1) os = "Linux";
+
+                // Browser Detection
+                if (ua.toLowerCase().indexOf("axon") !== -1) {
+                    browser = `Axon USB App`;
+                } else if (ua.indexOf("Edg/") !== -1) {
+                    browser = `Edge ${ua.split('Edg/')[1].split(' ')[0]}`;
+                } else if (ua.indexOf("Firefox/") !== -1) {
+                    browser = `Firefox ${ua.split('Firefox/')[1].split(' ')[0]}`;
+                } else if (ua.indexOf("Chrome/") !== -1 && ua.indexOf("Safari/") !== -1 && ua.indexOf("OPR/") === -1) {
+                    browser = `Chrome ${ua.split('Chrome/')[1].split(' ')[0]}`;
+                } else if (ua.indexOf("Safari/") !== -1 && ua.indexOf("Chrome/") === -1) {
+                    browser = `Safari ${ua.split('Version/')[1]?.split(' ')[0] || ''}`;
+                }
+
+                return { os, browser, userAgent: ua };
+            };
+
+            // Make getDesktopInfo globally available for desktop session updates
+            window.getDesktopInfo = getDesktopInfo;
+
+            // 3. Status Updater (matching axonantigo.html style)
             const updateConnectionStatus = (desktopData) => {
                 if (!statusDot || !statusText) return;
 
-                let lastSeen = null;
-                if (desktopData && desktopData.timestamp) {
-                    if (typeof desktopData.timestamp.toDate === 'function') {
-                        lastSeen = desktopData.timestamp.toDate();
-                    } else if (desktopData.timestamp instanceof Date) {
-                        lastSeen = desktopData.timestamp;
-                    } else {
-                        // Try parsing if it's a string or number
-                        lastSeen = new Date(desktopData.timestamp);
-                    }
+                const isConnected = desktopData && desktopData.timestamp && (new Date() - desktopData.timestamp.toDate() < 30000);
+
+                // Update status dot classes
+                statusDot.classList.remove('status-dot-m2', 'active', 'status-on');
+                statusDot.classList.add('status-dot');
+                if (isConnected) {
+                    statusDot.classList.add('status-on');
                 }
 
-                // 60 seconds tolerance
-                const isConnected = lastSeen && (new Date() - lastSeen < 60000);
-
-                statusDot.className = isConnected ? 'status-dot-m2 active' : 'status-dot-m2';
-                statusDot.style.background = isConnected ? 'var(--m2-status-on)' : 'var(--m2-status-off)';
-
                 if (isConnected) {
-                    const isAxon = (desktopData.userAgent && desktopData.userAgent.toLowerCase().includes('axon')) || (desktopData.browser && desktopData.browser.toLowerCase().includes('axon'));
+                    // Check for Axon USB connection
+                    const isAxon = (desktopData.userAgent && desktopData.userAgent.toLowerCase().includes('axon')) ||
+                        (desktopData.browser && desktopData.browser.toLowerCase().includes('axon'));
+
                     if (isAxon) {
-                        statusText.innerHTML = `<span style="color: #68d391; border: 1px solid #68d391; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: rgba(104, 211, 145, 0.1);">CONECTADO VIA UNIDADE AXON USB</span>`;
+                        statusText.innerHTML = `<span class="axon-usb-badge">CONECTADO VIA UNIDADE AXON USB</span>`;
                     } else {
-                        statusText.textContent = `Conectado: ${desktopData.os} - ${desktopData.browser}`;
+                        // Show detailed device info like axonantigo.html
+                        const osInfo = desktopData.os || 'Desktop';
+                        const browserInfo = desktopData.browser || 'Navegador';
+                        statusText.textContent = `Conectado em desktop: ${osInfo} - ${browserInfo}`;
                     }
                 } else {
-                    statusText.textContent = 'Desconectado (Sem sinal)';
+                    statusText.textContent = 'Nenhum desktop conectado';
                 }
             };
 
@@ -14637,33 +14793,21 @@ ${instruction}
                     if (user) {
                         activateMobileMode();
 
-                        // Setup Status Listener using Firebase Compat API
-                        if (!desktopListenerUnsubscribe && typeof firebase !== 'undefined' && firebase.firestore) {
+                        // Setup Status Listener (Robust Local Implementation)
+                        if (!desktopListenerUnsubscribe && typeof onSnapshot !== 'undefined' && typeof doc !== 'undefined' && typeof db !== 'undefined') {
                             try {
-                                const userEmail = user.email;
+                                const userEmail = user.email || (typeof currentUser !== 'undefined' ? currentUser : null);
                                 if (userEmail) {
-                                    const firestoreDb = firebase.firestore();
-                                    desktopListenerUnsubscribe = firestoreDb.collection("sessions").doc(userEmail).onSnapshot((docSnap) => {
-                                        if (docSnap.exists) {
+                                    desktopListenerUnsubscribe = onSnapshot(doc(db, "sessions", userEmail), (docSnap) => {
+                                        if (docSnap.exists()) {
                                             const data = docSnap.data();
                                             if (data && data.desktopConnection) {
                                                 updateConnectionStatus(data.desktopConnection);
-                                            } else {
-                                                // No desktop connection data yet
-                                                if (statusText) statusText.textContent = 'Aguardando Desktop...';
                                             }
-                                        } else {
-                                            if (statusText) statusText.textContent = 'Sessão não encontrada';
                                         }
-                                    }, (error) => {
-                                        console.error("[MobileFX] Firestore listener error:", error);
-                                        if (statusText) statusText.textContent = 'Erro de conexão';
                                     });
                                 }
-                            } catch (e) {
-                                console.error("[MobileFX] Status listener setup error:", e);
-                                if (statusText) statusText.textContent = 'Erro ao conectar';
-                            }
+                            } catch (e) { console.error("[MobileFX] Status listener setup error:", e); }
                         }
 
                     } else {
@@ -14741,18 +14885,52 @@ ${instruction}
                                 if (feedback) feedback.textContent = 'Senha incorreta.';
                             }
                         }
-                    }, true);
+                    });
+                }
+
+                // Disconnect Button Listener
+                if (disconnectBtn) {
+                    disconnectBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        // Using the requested Confirmation Modal
+                        if (typeof showConfirmModal === 'function') {
+                            showConfirmModal(
+                                "Deseja encerrar todas as sessões em desktops? Qualquer dispositivo conectado será desconectado e precisará de um novo login.",
+                                async () => {
+                                    const user = (typeof currentUser !== 'undefined' && currentUser)
+                                        ? currentUser
+                                        : (typeof firebase !== 'undefined' && firebase.auth().currentUser ? firebase.auth().currentUser.email : null);
+
+                                    if (user) {
+                                        try {
+                                            await deleteDoc(doc(db, "sessions", user));
+                                            if (statusText) statusText.textContent = "Sessão encerrada.";
+                                        } catch (e) {
+                                            console.error("Erro ao encerrar sessão remota:", e);
+                                            alert("Erro ao desconectar: " + e.message);
+                                        }
+                                    }
+                                }
+                            );
+                        } else {
+                            // Fallback if modal not found
+                            if (confirm("Deseja encerrar todas as sessões em desktops?")) {
+                                const user = (typeof currentUser !== 'undefined' && currentUser)
+                                    ? currentUser
+                                    : (typeof firebase !== 'undefined' && firebase.auth().currentUser ? firebase.auth().currentUser.email : null);
+
+                                if (user) deleteDoc(doc(db, "sessions", user));
+                            }
+                        }
+                    });
                 }
 
                 if (btnChat) btnChat.onclick = () => safeOpen('chatbox-modal', 'flex');
                 if (btnTransfer) btnTransfer.onclick = () => safeOpen('transfer-modal', 'flex');
 
-                // Disconnect
-                if (disconnectBtn) disconnectBtn.onclick = () => {
-                    if (confirm("Desconectar desta sessão?")) {
-                        if (firebase && firebase.auth()) firebase.auth().signOut().then(() => window.location.reload());
-                    }
-                };
+
 
                 // Logout Header
                 const mobileLogoutBtn = document.getElementById('mobile-logout-button');
@@ -14797,43 +14975,6 @@ ${instruction}
                     // Auth Listener
                     firebase.auth().onAuthStateChanged((user) => {
                         window.updateMobile2Layout();
-
-                        // Desktop Connection Writer - Write connection data to Firestore for mobile to read
-                        if (user && !isMobileModeActive && typeof firebase !== 'undefined' && firebase.firestore) {
-                            try {
-                                const userEmail = user.email;
-                                if (userEmail) {
-                                    // Detect browser and OS
-                                    const ua = navigator.userAgent;
-                                    let browser = 'Unknown';
-                                    let os = 'Unknown';
-
-                                    // Browser detection
-                                    if (ua.includes('Axon')) browser = 'Axon';
-                                    else if (ua.includes('Chrome')) browser = 'Chrome';
-                                    else if (ua.includes('Firefox')) browser = 'Firefox';
-                                    else if (ua.includes('Safari')) browser = 'Safari';
-                                    else if (ua.includes('Edge')) browser = 'Edge';
-
-                                    // OS detection
-                                    if (ua.includes('Windows')) os = 'Windows';
-                                    else if (ua.includes('Mac')) os = 'macOS';
-                                    else if (ua.includes('Linux')) os = 'Linux';
-                                    else if (ua.includes('Android')) os = 'Android';
-                                    else if (ua.includes('iOS') || ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
-
-                                    const firestoreDb = firebase.firestore();
-                                    firestoreDb.collection("sessions").doc(userEmail).set({
-                                        desktopConnection: {
-                                            os: os,
-                                            browser: browser,
-                                            userAgent: ua,
-                                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                                        }
-                                    }, { merge: true }).catch(e => console.error("[MobileFX] Desktop connection write error:", e));
-                                }
-                            } catch (e) { console.error("[MobileFX] Desktop connection setup error:", e); }
-                        }
                     });
                 }
             }, 200);
