@@ -14169,11 +14169,25 @@ ${instruction}
         }
 
         /* Aggressive Hide for Desktop Elements */
-        body.mobile-2-0-active>*:not(.mobile-2-0-wrapper):not(#mobile-debug-hud):not(script):not(style):not(#custom-confirm-modal):not(#login-modal):not(#custom-mobile-confirm-modal):not(#confirm-modal-content):not(.modal) {
+        body.mobile-2-0-active>*:not(.mobile-2-0-wrapper):not(#mobile-debug-hud):not(script):not(style):not(#custom-confirm-modal):not(#login-modal):not(#custom-mobile-confirm-modal):not(#confirm-modal-content):not(.modal):not(.album-modal):not(#camera-container):not(.patient-list-modal):not(.patient-details-modal):not(.app-modal):not(.fullscreen-modal):not(#fullscreen-modal) {
             display: none !important;
         }
 
-        /* FORCE MOBILE LAYOUT ON ALL ORIENTATIONS */
+        /* Force high z-index for modals in mobile mode */
+        body.mobile-2-0-active .album-modal,
+        body.mobile-2-0-active .patient-list-modal,
+        body.mobile-2-0-active .patient-details-modal,
+        body.mobile-2-0-active .app-modal,
+        body.mobile-2-0-active #camera-container {
+            z-index: 9999999 !important;
+        }
+
+        /* Fullscreen modal must be above album-modal */
+        body.mobile-2-0-active .fullscreen-modal,
+        body.mobile-2-0-active #fullscreen-modal {
+            z-index: 99999999 !important;
+        }
+
         @media screen and (orientation: landscape) {
             body.mobile-2-0-active .mobile-2-0-wrapper {
                 display: flex !important;
@@ -15039,9 +15053,9 @@ ${instruction}
                             // 1. Force UI Transition Immediately
                             const loginModal = document.getElementById('login-modal');
                             const mobContainer = document.getElementById('mobile-2-0-container');
-                            
+
                             if (mobContainer) mobContainer.style.display = 'none';
-                            
+
                             // Show Login Modal FORCEFULLY
                             if (loginModal) {
                                 loginModal.style.setProperty('display', 'flex', 'important');
@@ -15055,14 +15069,14 @@ ${instruction}
 
                             // 2. Clear Persistence
                             localStorage.removeItem('axon_logged_in_user');
-                            
+
                             // 3. Sign Out (async but UI is already updated)
                             if (typeof firebase !== 'undefined' && firebase.auth()) {
                                 firebase.auth().signOut().then(() => {
-                                    if(window.updateMobile2Layout) window.updateMobile2Layout();
+                                    if (window.updateMobile2Layout) window.updateMobile2Layout();
                                 }).catch(err => {
                                     console.error(err);
-                                    window.location.reload(); 
+                                    window.location.reload();
                                 });
                             } else {
                                 window.location.reload();
@@ -15075,9 +15089,9 @@ ${instruction}
                             modal = document.createElement('div');
                             modal.id = 'custom-mobile-confirm-modal';
                             // Reuse existing classes but force z-index for mobile
-                            modal.className = 'custom-modal'; 
-                            modal.style.cssText = 'display:none; z-index:99999999 !important;'; 
-                            
+                            modal.className = 'custom-modal';
+                            modal.style.cssText = 'display:none; z-index:99999999 !important;';
+
                             modal.innerHTML = `
                                 <div class="custom-modal-content">
                                     <h3 class="custom-modal-title">Sair?</h3>
@@ -15091,14 +15105,14 @@ ${instruction}
                             document.body.appendChild(modal);
                             document.getElementById('mob-conf-cancel').onclick = () => modal.style.display = 'none';
                         }
-                        
+
                         // Re-bind OK button to current closure
-                        const okBtn = document.getElementById('mob-conf-ok'); 
+                        const okBtn = document.getElementById('mob-conf-ok');
                         if (okBtn) okBtn.onclick = () => {
-                             document.getElementById('custom-mobile-confirm-modal').style.display = 'none';
-                             performLogout();
+                            document.getElementById('custom-mobile-confirm-modal').style.display = 'none';
+                            performLogout();
                         };
-                         
+
                         document.getElementById('custom-mobile-confirm-modal').style.display = 'flex';
                     };
                 }
