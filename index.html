@@ -14169,7 +14169,7 @@ ${instruction}
         }
 
         /* Aggressive Hide for Desktop Elements */
-        body.mobile-2-0-active>*:not(.mobile-2-0-wrapper):not(#mobile-debug-hud):not(script):not(style):not(#custom-confirm-modal):not(#login-modal):not(#custom-mobile-confirm-modal):not(#confirm-modal-content):not(.modal):not(.album-modal):not(#camera-container):not(.patient-list-modal):not(.patient-details-modal):not(.app-modal):not(.fullscreen-modal):not(#fullscreen-modal) {
+        body.mobile-2-0-active>*:not(.mobile-2-0-wrapper):not(#mobile-debug-hud):not(script):not(style):not(#custom-confirm-modal):not(#login-modal):not(#custom-mobile-confirm-modal):not(#confirm-modal-content):not(.modal):not(.album-modal):not(#camera-container):not(.patient-list-modal):not(.patient-details-modal):not(.app-modal):not(.fullscreen-modal):not(#fullscreen-modal):not(#mobile-analysis-loader):not(.mobile-analysis-loader) {
             display: none !important;
         }
 
@@ -14185,6 +14185,12 @@ ${instruction}
         /* Fullscreen modal must be above album-modal */
         body.mobile-2-0-active .fullscreen-modal,
         body.mobile-2-0-active #fullscreen-modal {
+            z-index: 99999999 !important;
+        }
+
+        /* Mobile analysis loader must be above camera-container */
+        body.mobile-2-0-active #mobile-analysis-loader,
+        body.mobile-2-0-active .mobile-analysis-loader {
             z-index: 99999999 !important;
         }
 
