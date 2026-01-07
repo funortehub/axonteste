@@ -7208,12 +7208,31 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
             const container = document.querySelector('.container');
             const mContainer = document.getElementById('mobile-2-0-container');
 
-            if (isMobile && globalSettings.mobile2_0_enabled) {
-                if (container) container.style.display = 'none';
-                if (mContainer) mContainer.style.display = 'flex';
-                if (btnCloud) btnCloud.style.display = 'none';
-                document.body.classList.add('mobile-2-0-active'); // Ensure class is added here too
+            if (isMobile) {
+                // FORCE MOBILE VIEW regardless of screen size or orientation, if detected as mobile device (UserAgent)
+                if (globalSettings.mobile2_0_enabled) {
+                    // Check Login Status for Visibility
+                    if (isLoggedIn) {
+                        if (container) container.style.display = 'none';
+                        if (mContainer) mContainer.style.display = 'flex';
+                        document.body.classList.add('mobile-2-0-active');
+                    } else {
+                        // Not logged in: Hide mobile container, but keep body class to suppress other elements if needed,
+                        // OR remove class to allow login modal to be seen clearly without mobile container overlay.
+                        // User wants: "mobile-2-0-container não apareça... somente o modal de login... mobile-2-0-container deve ficar oculto"
+                        if (container) container.style.display = 'none'; // Hide desktop container background
+                        if (mContainer) mContainer.style.display = 'none'; // Hide mobile container
+                        document.body.classList.remove('mobile-2-0-active'); // Remove active class so Login Modal (which might be outside) is visible?
+                        // Wait, login modal is usually top level.
+                        // But we want to ensure desktop container is HIDDEN on mobile devices even if not logged in?
+                        // "aparecerá para ao usuário somente o modal de login persistente"
+                        // If we hide desktop container (container.style.display='none') and mobile container is none,
+                        // we just see the background and the modal. This is correct.
+                    }
+                    if (btnCloud) btnCloud.style.display = 'none';
+                }
             } else {
+                // Desktop Logic
                 if (container) container.style.display = 'flex';
                 if (mContainer) mContainer.style.display = 'none';
                 if (btnCloud) btnCloud.style.display = 'flex';
@@ -14140,7 +14159,7 @@ ${instruction}
             align-items: center;
             transition: background 0.8s ease;
             overflow-y: auto;
-            padding: 20px;
+            padding: 10px;
             font-family: 'Outfit', sans-serif;
         }
 
@@ -14150,14 +14169,57 @@ ${instruction}
         }
 
         /* Aggressive Hide for Desktop Elements */
-        body.mobile-2-0-active>*:not(.mobile-2-0-wrapper):not(#mobile-debug-hud):not(script):not(style):not(#custom-confirm-modal) {
+        body.mobile-2-0-active>*:not(.mobile-2-0-wrapper):not(#mobile-debug-hud):not(script):not(style):not(#custom-confirm-modal):not(#login-modal) {
             display: none !important;
+        }
+
+        /* FORCE MOBILE LAYOUT ON ALL ORIENTATIONS */
+        @media screen and (orientation: landscape) {
+            body.mobile-2-0-active .mobile-2-0-wrapper {
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+                align-items: center !important;
+            }
+
+            body.mobile-2-0-active .mobile-2-0-container {
+                display: flex !important;
+            }
+
+            body.mobile-2-0-active .container {
+                display: none !important;
+            }
+
+            body.mobile-2-0-active .main-stage {
+                display: none !important;
+            }
+        }
+
+        @media screen and (orientation: portrait) {
+            body.mobile-2-0-active .mobile-2-0-wrapper {
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+                align-items: center !important;
+            }
+
+            body.mobile-2-0-active .mobile-2-0-container {
+                display: flex !important;
+            }
+
+            body.mobile-2-0-active .container {
+                display: none !important;
+            }
+
+            body.mobile-2-0-active .main-stage {
+                display: none !important;
+            }
         }
 
         /* MOBILE 2.0 CSS FROM mobile2.0.html */
         .mobile-2-0-container {
-            width: 92%;
-            max-width: 440px;
+            width: 98%;
+            max-width: 98%;
             background: var(--m2-bg-blur);
             backdrop-filter: blur(30px) saturate(180%);
             -webkit-backdrop-filter: blur(30px) saturate(180%);
@@ -14777,8 +14839,10 @@ ${instruction}
                     return;
                 }
 
-                // Device Check
+                // Device Check - TRUST USER AGENT
                 const isMobileUA = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+                // Only consider width if NOT a mobile UA (e.g. small browser window on desktop)
                 const isMobileWidth = window.innerWidth <= 1024;
                 const isMobileLocal = isMobileUA || isMobileWidth;
 
@@ -14786,6 +14850,9 @@ ${instruction}
                     if (isMobileModeActive) deactivateMobileMode();
                     return;
                 }
+
+                // Strictly Enforce Mobile Mode if isMobileUA is true (Prevents Rotation to Desktop)
+                // If it is a mobile device, we NEVER show desktop view.
 
                 // Auth Check
                 if (typeof firebase !== 'undefined' && firebase.auth()) {
@@ -14811,10 +14878,38 @@ ${instruction}
                         }
 
                     } else {
-                        deactivateMobileMode();
+                        // User NOT Logged In logic
+                        if (isMobileUA) {
+                            // On Mobile Device:
+                            // 1. Activate "Mobile Mode" CSS to HIDE Desktop elements (via body class)
+                            document.body.classList.add('mobile-2-0-active');
+                            window.isMobile = true;
+
+                            // 2. Hide Mobile Container (Wrapper) because user wants ONLY Login Modal
+                            if (container) container.style.display = 'none';
+
+                            // 3. Ensure Login Modal is visible (handled by CSS exclusion and Main Logic)
+                            // Note: deactivateMobileMode would show desktop, which we DON'T want.
+
+                            // Hide Main Stage explicitly if needed (redundant with body class but safe)
+                            const mainStage = document.querySelector('.main-stage');
+                            if (mainStage) mainStage.style.setProperty('display', 'none', 'important');
+
+                        } else {
+                            // On Desktop (small window): Just show standard view (Deactivate Logic)
+                            deactivateMobileMode();
+                        }
                     }
                 } else {
-                    deactivateMobileMode();
+                    // No Firebase Auth instance yet?
+                    if (isMobileUA) {
+                        document.body.classList.add('mobile-2-0-active');
+                        if (container) container.style.display = 'none';
+                        const mainStage = document.querySelector('.main-stage');
+                        if (mainStage) mainStage.style.setProperty('display', 'none', 'important');
+                    } else {
+                        deactivateMobileMode();
+                    }
                 }
             };
 
@@ -14959,7 +15054,28 @@ ${instruction}
             };
 
             // 6. Init Triggers
-            window.addEventListener('resize', window.updateMobile2Layout);
+            // Try to lock screen orientation to portrait on mobile devices
+            const tryLockOrientation = () => {
+                const isMobileUA = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                if (isMobileUA && screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('portrait').catch(e => {
+                        console.log('[MobileFX] Orientation lock not supported:', e.message);
+                    });
+                }
+            };
+            tryLockOrientation();
+
+            // Resize listener - SKIP recalculation on mobile devices to prevent rotation issues
+            window.addEventListener('resize', () => {
+                const isMobileUA = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                if (isMobileUA && isMobileModeActive) {
+                    // On mobile device + already in mobile mode: DO NOT recalculate layout
+                    // This prevents rotation from hiding the mobile container
+                    console.log('[MobileFX] Resize ignored on mobile device');
+                    return;
+                }
+                window.updateMobile2Layout();
+            });
 
             // Poll for Firebase Readiness
             const initInterval = setInterval(() => {
