@@ -11837,10 +11837,15 @@ ${instruction}
                                             }
                                         }
                                     } else {
-                                        if (child.ipfsHash) {
+                                        // FIX: Support Mixed Storage (Supabase & IPFS)
+                                        let fileUrl = child.url || child.link;
+                                        if (!fileUrl && child.ipfsHash) {
+                                            fileUrl = `https://gateway.pinata.cloud/ipfs/${child.ipfsHash}`;
+                                        }
+
+                                        if (fileUrl) {
                                             try {
-                                                const url = `https://gateway.pinata.cloud/ipfs/${child.ipfsHash}`;
-                                                const response = await fetch(url);
+                                                const response = await fetch(fileUrl);
                                                 if (response.ok) {
                                                     const blob = await response.blob();
                                                     zipFolder.file(child.name, blob);
@@ -11882,12 +11887,18 @@ ${instruction}
                         return;
                     }
 
-                    if (!item.ipfsHash) {
-                        appendOutput("Erro: Hash IPFS não encontrado para este arquivo.", "error");
+                    // FIX: Support Supabase/Direct URLs
+                    let url = item.url || item.link;
+                    if (!url && item.ipfsHash) {
+                        url = `https://gateway.pinata.cloud/ipfs/${item.ipfsHash}`;
+                    }
+
+                    if (!url) {
+                        appendOutput("Erro: URL de download não encontrada (Hash IPFS ou Link ausente).", "error");
                         return;
                     }
 
-                    const url = `https://gateway.pinata.cloud/ipfs/${item.ipfsHash}`;
+                    // const url = ... (Removed old const declaration)
                     appendOutput(`Iniciando download de ${item.name}...`, "info");
 
                     try {
