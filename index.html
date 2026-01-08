@@ -8021,9 +8021,12 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
             } else {
                 showMobileLoader();
             }
+
+            // Start Animation immediately (sets isAnalyzing = true in Firestore)
             await setAnalyzingStateInFirestore(true, 'axon-eye');
 
             try {
+                // 1. Upload Images to Storage (Imgur/Supabase)
                 const currentUploads = [];
                 for (const imgBase64 of capturedImages) {
                     const uploadResult = await uploadAxonEyeImage(imgBase64);
@@ -8038,6 +8041,15 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
 
                 temporaryImgurUploads = [...currentUploads];
 
+                // 2. Save Images to Firestore NOW
+                // This ensures that when the animation ends (via listener on isAnalyzing=false),
+                // the images are already available in the 'axonEyeImages' field.
+                if (currentUser) {
+                    await setDoc(doc(db, "sessions", currentUser), {
+                        axonEyeImages: temporaryImgurUploads
+                    }, { merge: true });
+                }
+
                 const prompt = `Analise as imagens e forneça uma opinião clínica detalhada. Descreva achados, lesões, ou sintomas. Ao final, inclua uma seção "Impressão Diagnóstica:" ou "Interpretação Clínica:" com sua conclusão. Formate palavras importantes com asteriscos (ex: *Lesão sugestiva de...*). Seja descritivo e clinicamente relevante.`;
 
                 let fullResponse = "";
@@ -8045,14 +8057,11 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
 
                 // Decide the image source based on provider
                 if (globalSettings.apiProvider === 'openrouter') {
-                    // OpenRouter needs URLs, which we have from Imgur
                     imagesForApiCall = temporaryImgurUploads.map(upload => upload.link);
                 } else {
-                    // Gemini and Groq need base64 data
                     imagesForApiCall = capturedImages;
                 }
 
-                // Decide on batching
                 const isGroq = globalSettings.apiProvider === 'groq' || (globalSettings.apiProvider === 'custom' && globalSettings.customVisionProvider === 'groq');
 
                 if (isGroq && imagesForApiCall.length > 5) {
@@ -8067,7 +8076,6 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                         fullResponse += chunkResponse + "\n\n";
                     }
                 } else {
-                    // No batching needed
                     fullResponse = await callVisionAPI(imagesForApiCall, prompt);
                 }
 
@@ -8076,6 +8084,7 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                     return;
                 }
 
+                // 3. Save Results and Stop Animation
                 await setDoc(doc(db, "sessions", currentUser), {
                     axonEyeResults: fullResponse.trim(),
                     axonEyeImages: [...temporaryImgurUploads],
@@ -10801,8 +10810,16 @@ ${instruction}
 
         btnRecords.addEventListener('click', () => checkBlockedAndExecute(() => processCommand('/load')));
         btnClear.addEventListener('click', () => checkBlockedAndExecute(() => {
-            resetSession();
-            if (typeof updateFreeModeUI === 'function') updateFreeModeUI(false); // Fix Free Mode Mix Bug
+            if (isFreeMode) {
+                if (textareaFreeMode) {
+                    textareaFreeMode.value = '';
+                    if (typeof saveFreeModeText === 'function') saveFreeModeText('');
+                    // Optional: Visual feedback for textarea clear
+                }
+            } else {
+                resetSession();
+                if (typeof updateFreeModeUI === 'function') updateFreeModeUI(false); // Fix Free Mode Mix Bug
+            }
         }));
         btnMic.addEventListener('click', () => checkBlockedAndExecute(() => processCommand(isListening ? '/hear off' : '/hear on')));
         btnSaveFromList.addEventListener('click', () => {
