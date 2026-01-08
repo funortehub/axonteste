@@ -4741,7 +4741,7 @@
                 </div>
             </div>
 
-            <div id="initial-messages" style="display:none;"></div>
+
             <!-- Preserving ID just in case JS targets it -->
             </div>
 
@@ -5476,7 +5476,7 @@
         const apiStatus = document.getElementById('api-status');
         const micStatus = document.getElementById('mic-status');
         const cameraStatus = document.getElementById('camera-status');
-        const initialMessagesContainer = document.getElementById('initial-messages');
+
         const monitorCopyBtn = document.getElementById('monitor-copy-btn');
         const logoutButton = document.getElementById('logout-button');
         const settingsButton = document.getElementById('settings-button');
@@ -5889,14 +5889,14 @@
         };
 
         const resetInteractiveTerminal = (requireLogin = false) => {
-            const elementsToKeep = [initialMessagesContainer];
+            const elementsToKeep = [];
             Array.from(interactiveOutput.children).forEach(child => {
                 if (!elementsToKeep.includes(child) && !child.classList.contains('terminal-logo-internal')) {
                     child.remove();
                 }
             });
 
-            initialMessagesContainer.style.display = 'block';
+
 
             if (requireLogin) {
                 isLoggedIn = false;
@@ -5916,33 +5916,11 @@
                     unsubscribeTransfer();
                     unsubscribeTransfer = null;
                 }
-                initialMessagesContainer.innerHTML = `
-                    <pre class="info">
- █████╗ ██╗  ██╗ ██████╗ ███╗   ██╗
-██╔══██╗╚██╗██╔╝██╔═══██╗████╗  ██║
-███████║ ╚███╔╝ ██║   ██║██╔██╗ ██║
-██╔══██║ ██╔██╗ ██║   ██║██║╚██╗██║
-██║  ██║██╔╝ ██╗╚██████╔╝██║ ╚████║
-╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
-                    </pre>
-                    <span class="info">Axon - Assistente Médico v1.6</span><br>
-                    <span class="info">Aguardando autenticação...</span><br><br>
-                `;
+
                 loginModal.style.display = 'flex';
                 loginModalUser.focus();
             } else {
-                initialMessagesContainer.innerHTML = `
-                    <pre class="info">
- █████╗ ██╗  ██╗ ██████╗ ███╗   ██╗
-██╔══██╗╚██╗██╔╝██╔═══██╗████╗  ██║
-███████║ ╚███╔╝ ██║   ██║██╔██╗ ██║
-██╔══██║ ██╔██╗ ██║   ██║██║╚██╗██║
-██║  ██║██╔╝ ██╗╚██████╔╝██║ ╚████║
-╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
-                    </pre>
-                    <span class="info">Axon - Assistente Médico v1.6</span><br>
-                    <span class="info">Digite </span><span class="command">/help</span><span class="info"> para ver os comandos disponíveis</span><br>
-                `;
+
             }
             interactiveOutput.scrollTop = interactiveOutput.scrollHeight;
         };
@@ -8510,7 +8488,7 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
             if (isRestoredSession) appendOutput(`Sessão restaurada para: ${currentUser}`, "success", false);
             else appendOutput(`Login bem-sucedido. Bem-vindo, ${currentUser}.`, "success", false);
 
-            initialMessagesContainer.style.display = 'none';
+
 
             mobileWelcomeTitle.textContent = `Bem-vindo, ${currentUser}!`;
 
