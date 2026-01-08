@@ -5648,9 +5648,9 @@
         }
 
         const defaultApiKeys = [
-            'AIzaSyB7krrv-Jjw4hn34MIFYBcrzDa5mWB9PpU',
-            'AIzaSyAJk2u0SsCv11d9mrECAkoBRafHEVGgwwg',
-            'AIzaSyAG0j6JuMlR5FoCTUcNQOvNy_lcS5C9ew0'
+            '',
+            '',
+            ''
         ];
         const defaultApiModels = [
             { id: 1, name: 'gemini-2.0-flash', vision: true },
@@ -7341,9 +7341,9 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                             manualVisionModel: '',
                             manualApiKey: '',
                             apiProvider: 'gemini',
-                            openRouterKey: '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',
+                            openRouterKey: '',
                             openRouterModel: '',
-                            groqKey: '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',
+                            groqKey: '',
                             groqTextModel: 'llama-3.3-70b-versatile',
                             groqVisionModel: 'llama-3.2-90b-vision-preview',
                             groqAvailableModels: [],
@@ -7352,7 +7352,7 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                             customTextProvider: 'gemini',
                             customVisionProvider: 'gemini',
                             pinataKeys: [
-                                { key: "5256cd6c1c0b4ccec3a9", secret: "afbed7932f0ebf5c50d88d04378359164aca3ae63a72e2628375dc02e4fcfb05" }
+                                { key: "", secret: "" }
                             ],
                             supabaseUrl: '',
                             supabaseKey: '',
@@ -7373,8 +7373,24 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
             });
         };
 
+        const verifyAdminPassword = async (inputPassword) => {
+            try {
+                const docRef = doc(db, "settings", "global_admin");
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    return docSnap.data().password === inputPassword;
+                } else {
+                    console.warn("ADMIN SECURITY WARNING: 'settings/global_admin' document missing in Firebase. Admin access disabled.");
+                    return false;
+                }
+            } catch (error) {
+                console.error("Error verifying admin password:", error);
+                return false;
+            }
+        };
+
         const registerUser = async (adminPassword, username, password) => {
-            if (adminPassword !== 'admin123') return appendOutput("Senha de administrador incorreta.", "error");
+            if (!(await verifyAdminPassword(adminPassword))) return appendOutput("Senha de administrador incorreta.", "error");
             if (!username || !password) return appendOutput("Uso: /register [senha_admin] [usuário] [senha]", "error");
             try {
                 const userRef = doc(db, "users", username);
@@ -7384,7 +7400,7 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
             } catch (e) { appendOutput(`Erro ao registrar: ${e.message}`, "error"); }
         };
         const deleteUser = async (adminPassword, username) => {
-            if (adminPassword !== 'admin123') return appendOutput("Senha de administrador incorreta.", "error");
+            if (!(await verifyAdminPassword(adminPassword))) return appendOutput("Senha de administrador incorreta.", "error");
             if (!username) return appendOutput("Uso: /delete [senha_admin] [usuário]", "error");
             try {
                 const userRef = doc(db, "users", username);
@@ -7397,7 +7413,6 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
             } catch (e) { appendOutput(`Erro ao deletar: ${e.message}`, "error"); }
         };
         const authenticateUser = async (username, password) => {
-            if (username === 'ian' && password === 'ian123') return { success: true, isBlocked: false, isCloudDisabled: false };
             try {
                 const userRef = doc(db, "users", username);
                 const docSnap = await getDoc(userRef);
@@ -8614,8 +8629,8 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
             adminAuthPass.focus();
         };
 
-        const checkAdminAuth = () => {
-            if (adminAuthPass.value === 'admin123') {
+        const checkAdminAuth = async () => {
+            if (await verifyAdminPassword(adminAuthPass.value)) {
                 adminAuthModal.style.display = 'none';
                 adminPanelModal.style.display = 'flex';
                 activateAdminTab('users');
@@ -10130,8 +10145,8 @@ ${instruction}
 
             // Default keys check
             const defaultKeys = [{
-                key: "5256cd6c1c0b4ccec3a9",
-                secret: "afbed7932f0ebf5c50d88d04378359164aca3ae63a72e2628375dc02e4fcfb05",
+                key: "",
+                secret: "",
                 jwt: "afbed7932f0ebf5c50d88d04378359164aca3ae63a72e2628375dc02e4fcfb05",
                 addedAt: new Date().toISOString()
             }];
@@ -10585,7 +10600,7 @@ ${instruction}
                     await deleteUser(adminPassDel, userToDel);
                     break;
                 case '/users':
-                    if (parts[1] === 'admin123') {
+                    if (await verifyAdminPassword(parts[1])) {
                         adminPanelModal.style.display = 'flex';
                         activateAdminTab('users');
                     } else { appendOutput("Senha de administrador incorreta.", "error"); }
@@ -14970,7 +14985,7 @@ ${instruction}
                 const adminSubmitBtn = document.getElementById('admin-auth-button');
                 if (adminSubmitBtn) {
                     // Use capture to ensure we handle it before any broken listeners
-                    adminSubmitBtn.addEventListener('click', (e) => {
+                    adminSubmitBtn.addEventListener('click', async (e) => {
                         if (document.body.classList.contains('mobile-2-0-active')) {
                             e.preventDefault();
                             e.stopPropagation();
@@ -14978,7 +14993,7 @@ ${instruction}
                             const passInput = document.getElementById('admin-auth-pass');
                             const feedback = document.getElementById('admin-auth-feedback');
 
-                            if (passInput && passInput.value === 'admin123') {
+                            if (passInput && await verifyAdminPassword(passInput.value)) {
                                 // Close Auth
                                 const authModal = document.getElementById('admin-auth-modal');
                                 if (authModal) authModal.style.display = 'none';
