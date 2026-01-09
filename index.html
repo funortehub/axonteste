@@ -12800,8 +12800,27 @@ ${instruction}
                 // Use a database ID or fallback to id field
                 const pId = plugin.dbId || plugin.id;
 
+                // UPDATE CHECK LOGIC
+                // Find matching plugin in store by originalId or name
+                const storeMatch = this.storePlugins.find(sp => (plugin.originalId && sp.id === plugin.originalId) || sp.name === plugin.name);
+                let updateAvailable = false;
+                if (storeMatch) {
+                    const installedUpdate = plugin.updatedAt ? (plugin.updatedAt.toDate ? plugin.updatedAt.toDate() : new Date(plugin.updatedAt)) : null;
+                    const storeUpdate = storeMatch.updatedAt ? (storeMatch.updatedAt.toDate ? storeMatch.updatedAt.toDate() : new Date(storeMatch.updatedAt)) : null;
+
+                    // Logic:
+                    // 1. If Store Date > Installed Date -> Update available (Admin pushed new build, even if version is same or lower/rollback)
+                    // 2. OR If Store Version > Installed Version (Fallback if timestamps missing/unreliable)
+
+                    if (storeUpdate && installedUpdate && storeUpdate.getTime() > installedUpdate.getTime()) {
+                        updateAvailable = true;
+                    } else if (storeMatch.version > plugin.version) {
+                        updateAvailable = true;
+                    }
+                }
+
                 div.innerHTML = `
-                    <div class="plugin-icon-area">
+                    <div class="plugin-icon-area" style="position:relative;">
                         <img src="${plugin.icon || 'default_icon.png'}" class="plugin-icon-img" onerror="this.src='https://via.placeholder.com/50'">
                         <div class="plugin-info">
                             <div class="plugin-name">${plugin.name}</div>
@@ -12810,6 +12829,14 @@ ${instruction}
                                 ${plugin.author === 'Axon Dev' && plugin.source === 'store' ? '<i class="fas fa-check-circle" style="color:var(--highlight-color); font-size:10px;" title="Verificado"></i>' : ''}
                             </div>
                         </div>
+                        ${updateAvailable ? `
+                        <div class="update-badge" 
+                             title="Existe uma nova versão desse plugin disponível na Axon Store! Clique aqui para atualizar."
+                             onclick="window.axonPluginManager.updatePlugin('${pId}', '${storeMatch.id}')">
+                             <img src="https://cdn-icons-png.flaticon.com/512/3247/3247396.png" style="width:20px;height:20px;">
+                             <span>Atualização disponível</span>
+                        </div>
+                        ` : ''}
                     </div>
                     <div class="plugin-desc">${plugin.description || 'Sem descrição.'}</div>
                     <div class="plugin-actions">
@@ -12895,6 +12922,64 @@ ${instruction}
                 await this._performInstall(plugin);
             }
 
+            async updatePlugin(installedDbId, storePluginId) {
+                const plugin = this.storePlugins.find(p => p.id === storePluginId);
+                if (!plugin) return;
+
+                // Show Confirmation/Animation Popup
+                // Create a temporary modal for the update process
+                const popupId = 'update-popup-' + Date.now();
+                const popup = document.createElement('div');
+                popup.id = popupId;
+                popup.style.cssText = `
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10000;
+                    backdrop-filter: blur(5px);
+                `;
+                popup.innerHTML = `
+                    <div style="background: var(--glass-bg); padding: 30px; border-radius: 12px; border: 1px solid var(--border-color); text-align: center; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); color: var(--text-color);">
+                        <i class="fas fa-sync fa-spin" style="font-size: 40px; color: var(--highlight-color); margin-bottom: 20px;"></i>
+                        <h3 style="margin-bottom: 10px; color: var(--text-color);">Atualizando...</h3>
+                        <p style="color: var(--text-color); opacity: 0.8; margin-bottom: 0;">Substituindo a versão antiga pela nova versão (${plugin.version}) da Axon Store.</p>
+                    </div>
+                `;
+                document.body.appendChild(popup);
+
+                // Simulate delay/process
+                await new Promise(r => setTimeout(r, 1500));
+
+                try {
+                    // 1. Delete Old
+                    await deleteDoc(doc(db, "users", currentUser, "files", installedDbId));
+
+                    // 2. Install New
+                    // Using _performInstall logic but adapted to ensure smooth transition
+                    // We can just call _performInstall
+                    await this._performInstall(plugin);
+
+                    // Success feedback
+                    popup.innerHTML = `
+                        <div style="background: var(--glass-bg); padding: 30px; border-radius: 12px; border: 1px solid var(--success-color); text-align: center; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); color: var(--text-color);">
+                            <i class="fas fa-check-circle" style="font-size: 40px; color: var(--success-color); margin-bottom: 20px;"></i>
+                            <h3 style="margin-bottom: 10px; color: var(--text-color);">Atualizado!</h3>
+                            <p style="color: var(--text-color); opacity: 0.8; margin-bottom: 0;">O plugin foi atualizado com sucesso.</p>
+                        </div>
+                     `;
+
+                    setTimeout(() => {
+                        popup.classList.add('fade-out'); // assuming CSS or just remove
+                        popup.style.opacity = '0';
+                        popup.style.transition = 'opacity 0.5s';
+                        setTimeout(() => popup.remove(), 500);
+                    }, 1500);
+
+                } catch (err) {
+                    console.error("Update failed:", err);
+                    popup.remove();
+                    appendOutput("Erro ao atualizar plugin: " + err.message, "error");
+                }
+            }
+
             async _performInstall(plugin) {
                 // Optimization: Link to original file instead of re-uploading
                 const storeIpfsHash = plugin.ipfsHash;
@@ -12932,6 +13017,7 @@ ${instruction}
                         author: plugin.author,
                         version: plugin.version,
                         createdAt: new Date(),
+                        updatedAt: plugin.updatedAt || new Date(), // Copy store's updatedAt for update detection
                         size: plugin.size || 0,
                         ipfsHash: finalIpfsHash,
                         pinataKey: finalPinataKey,
@@ -13516,6 +13602,22 @@ ${instruction}
                         alert("JSON inválido. Requer name, id e version.");
                         return;
                     }
+
+                    appendOutput(`Verificando se o plugin ${pluginData.name} já existe...`, "info");
+
+                    // CHECK FOR EXISTING PLUGIN BY ID
+                    const existingQuery = query(collection(db, "axon_store_plugins"), where("id", "==", pluginData.id));
+                    const existingSnap = await getDocs(existingQuery);
+
+                    let existingDocId = null;
+                    let oldIpfsHash = null;
+                    if (!existingSnap.empty) {
+                        // Plugin already exists - get its doc ID for replacement
+                        existingDocId = existingSnap.docs[0].id;
+                        oldIpfsHash = existingSnap.docs[0].data().ipfsHash;
+                        appendOutput(`Plugin existente encontrado (ID: ${pluginData.id}). Substituindo...`, "info");
+                    }
+
                     appendOutput(`Enviando plugin ${pluginData.name} para Pinata...`, "info");
 
                     const uploadResult = await uploadToPinata(file);
@@ -13530,15 +13632,31 @@ ${instruction}
                         ipfsHash: uploadResult.ipfsHash,
                         pinataKey: uploadResult.pinataKey,
                         size: file.size,
-                        createdAt: new Date(),
-                        updatedAt: new Date(),
+                        createdAt: existingDocId ? existingSnap.docs[0].data().createdAt : new Date(),
+                        updatedAt: new Date(), // Always update this timestamp
                         html: pluginData.html || ""
                     };
 
-                    await addDoc(collection(db, "axon_store_plugins"), docData);
+                    if (existingDocId) {
+                        // REPLACE existing document
+                        await updateDoc(doc(db, "axon_store_plugins", existingDocId), docData);
+                        // Optionally unpin old IPFS hash
+                        if (oldIpfsHash && oldIpfsHash !== uploadResult.ipfsHash) {
+                            try {
+                                await unpinFromPinata(oldIpfsHash);
+                            } catch (unpinErr) {
+                                console.warn("Failed to unpin old hash:", unpinErr);
+                            }
+                        }
+                        appendOutput(`Plugin ${pluginData.name} atualizado na Store!`, "success");
+                        alert("Plugin atualizado com sucesso!");
+                    } else {
+                        // ADD new document
+                        await addDoc(collection(db, "axon_store_plugins"), docData);
+                        appendOutput(`Plugin ${pluginData.name} publicado na Store!`, "success");
+                        alert("Plugin publicado com sucesso!");
+                    }
 
-                    appendOutput(`Plugin ${pluginData.name} publicado na Store!`, "success");
-                    alert("Plugin publicado com sucesso!");
                     input.value = ''; // Reset input
                 } catch (err) {
                     console.error(err);
@@ -14129,6 +14247,67 @@ ${instruction}
     </script>
     <!-- MOBILE 2.0 INTEGRATION -->
     <style>
+        /* Plugin Update Badge */
+        .update-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(56, 189, 248, 0.5);
+            transition: all 0.3s ease;
+            z-index: 5;
+            animation: pulse-badge 2s infinite;
+        }
+
+        .update-badge:hover {
+            transform: scale(1.1);
+            width: auto;
+            border-radius: 12px;
+            padding: 4px 10px;
+        }
+
+        .update-badge img {
+            width: 12px;
+            height: 12px;
+            filter: brightness(0) invert(1);
+        }
+
+        .update-badge span {
+            display: none;
+            white-space: nowrap;
+            margin-left: 4px;
+        }
+
+        .update-badge:hover span {
+            display: inline;
+        }
+
+        @keyframes pulse-badge {
+            0% {
+                box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(56, 189, 248, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(56, 189, 248, 0);
+            }
+        }
+
         /* Mobile 2.0 Variables - Always Available */
         :root {
             /* Mobile 2.0 - Light Theme (Default) */
