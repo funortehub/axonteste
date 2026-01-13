@@ -6654,6 +6654,9 @@
             appendOutput("Sessão limpa.", "success");
         };
 
+        // Expose to window for external calls
+        window.resetInteractiveTerminal = resetInteractiveTerminal;
+
         const resetSession = async () => {
             await performSessionClear();
         };
@@ -12051,6 +12054,10 @@ ${instruction}
         const handleSuccessfulLogin = async (username, isAutoLogin) => {
             currentUser = username;
             isLoggedIn = true;
+
+            // Persist login state for Mobile 2.0
+            localStorage.setItem('axon_logged_in_user', username);
+
             appendOutput(`Usuário ${username} conectado.`, "success");
 
             // Fetch full user data to check subscription start date
@@ -16015,7 +16022,9 @@ ${instruction}
                 <div class="chat-bubble-info">
                     <i class="fas fa-info-circle"></i>
                     <span id="info-banner-content">
-                        Modo Mobile 2.0 Ativo.
+                        Para acesso completo acesse em seu navegador: <a href="https://funortehub.github.io/axon"
+                            target="_blank" class="highlight-link">funortehub.github.io/axon</a> ou conecte um
+                        dispositivo AXON USB.
                     </span>
                 </div>
             </div>
@@ -16252,6 +16261,18 @@ ${instruction}
 
                     } else {
                         // User NOT Logged In logic
+
+                        // Check for persistence flag effectively "Loading" state
+                        if (localStorage.getItem('axon_logged_in_user')) {
+                            // Do nothing, let the auth state resolve or timeout
+                            // If it takes too long without auth change, firebase listener will eventually fire "null" user if truly logged out?
+                            // Actually, firebase.auth().onAuthStateChanged handles the truth. 
+                            // But we need to avoid the flicker of "Mobile Mode Active" (Desktop Hidden) vs "Mobile Login Pushed".
+                            // If we have local storage, we assume we ARE logged in until proven otherwise.
+                            activateMobileMode();
+                            return;
+                        }
+
                         if (isMobileUA) {
                             // On Mobile Device:
                             // 1. Activate "Mobile Mode" CSS to HIDE Desktop elements (via body class)
