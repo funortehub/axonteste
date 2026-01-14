@@ -5509,7 +5509,9 @@
             <div class="admin-tabs"><button class="admin-tab-btn active" data-tab="users">Usuários</button><button
                     class="admin-tab-btn" data-tab="api">API</button><button class="admin-tab-btn"
                     data-tab="axon-drive">Axon Drive</button><button class="admin-tab-btn"
-                    data-tab="bridge">Bridge</button><button class="admin-tab-btn" data-tab="debug">Debug</button></div>
+                    data-tab="bridge">Bridge</button><button class="admin-tab-btn"
+                    data-tab="alerts">Alertas</button><button class="admin-tab-btn" data-tab="debug">Debug</button>
+            </div>
             <div id="tab-users" class="admin-tab-content">
                 <div class="patient-search-container" style="margin:0 0 15px 0"><input type="text"
                         id="admin-user-search" class="patient-search-input" placeholder="Buscar usuário..."></div>
@@ -5715,7 +5717,306 @@
                     </div>
                 </div>
             </div>
+
+            <!-- ALERTS TAB -->
+            <div id="tab-alerts" class="admin-tab-content" style="display:none">
+                <style>
+                    /* Scoped Styles for Alert Preview & Management */
+                    .alert-preview-stage {
+                        position: relative;
+                        width: 100%;
+                        max-width: 500px;
+                        height: 350px;
+                        background: rgba(255, 255, 255, 0.45);
+                        backdrop-filter: blur(32px) saturate(180%);
+                        -webkit-backdrop-filter: blur(32px) saturate(180%);
+                        border-radius: 20px;
+                        box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.05);
+                        overflow: hidden;
+                        display: flex;
+                        flex-direction: column;
+                        font-family: 'Plus Jakarta Sans', sans-serif;
+                        color: #1a1a1a;
+                        margin: 0 auto;
+                        transform-origin: center top;
+                        transform: scale(0.85);
+                        /* Scale down for better fit */
+                    }
+
+                    /* Alert Elements */
+                    .alert-header {
+                        padding: 20px 25px 10px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    }
+
+                    .alert-badge {
+                        font-family: monospace;
+                        font-size: 9px;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        color: #1a1a1a;
+                        background: rgba(0, 0, 0, 0.05);
+                        padding: 4px 8px;
+                        border-radius: 4px;
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                    }
+
+                    .alert-badge::before {
+                        content: "";
+                        width: 5px;
+                        height: 5px;
+                        background: #ff3b30;
+                        border-radius: 50%;
+                        box-shadow: 0 0 6px #ff3b30;
+                    }
+
+                    .alert-content {
+                        padding: 0 25px;
+                        flex: 1;
+                        display: flex;
+                        flex-direction: column;
+                        overflow-y: auto;
+                    }
+
+                    .alert-title {
+                        font-weight: 800;
+                        font-size: 20px;
+                        color: #000;
+                        line-height: 1.1;
+                        margin-bottom: 8px;
+                        letter-spacing: -0.02em;
+                    }
+
+                    .alert-message {
+                        font-size: 13px;
+                        color: rgba(0, 0, 0, 0.6);
+                        line-height: 1.5;
+                        margin-bottom: 15px;
+                    }
+
+                    .alert-media-container {
+                        width: 100%;
+                        border-radius: 12px;
+                        overflow: hidden;
+                        margin-bottom: 15px;
+                        background: rgba(0, 0, 0, 0.05);
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        min-height: 100px;
+                    }
+
+                    .alert-media-container img,
+                    .alert-media-container video,
+                    .alert-media-container iframe {
+                        width: 100%;
+                        height: auto;
+                        display: block;
+                        object-fit: cover;
+                    }
+
+                    .alert-media-container iframe {
+                        height: 200px;
+                        border: none;
+                    }
+
+                    .alert-footer {
+                        padding: 20px 25px;
+                        display: flex;
+                        gap: 10px;
+                        padding-top: 0;
+                    }
+
+                    .alert-btn {
+                        padding: 10px 20px;
+                        border-radius: 10px;
+                        font-weight: 600;
+                        font-size: 12px;
+                        cursor: pointer;
+                        border: none;
+                        transition: all 0.2s;
+                    }
+
+                    .alert-btn-primary {
+                        background: #1a1a1a;
+                        color: #fff;
+                        flex: 1;
+                    }
+
+                    /* Form Styles */
+                    .alert-form-grid {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 20px;
+                    }
+
+                    .alert-form-section {
+                        padding: 15px;
+                        background: rgba(0, 0, 0, 0.1);
+                        border-radius: 8px;
+                    }
+
+                    @media (max-width: 900px) {
+                        .alert-form-grid {
+                            grid-template-columns: 1fr;
+                        }
+                    }
+                </style>
+
+                <div class="alert-form-grid">
+                    <!-- Left: Form -->
+                    <div style="display: flex; flex-direction: column; gap: 15px;">
+                        <div class="admin-section">
+                            <h3>Criar Novo Alerta</h3>
+
+                            <div class="form-group" style="margin-bottom: 10px;">
+                                <label style="font-size:12px; opacity:0.7;">Título</label>
+                                <input type="text" id="alert-title" class="admin-input"
+                                    placeholder="Ex: Manutenção Programada" oninput="window.updateAlertPreview()">
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 10px;">
+                                <label style="font-size:12px; opacity:0.7;">Conteúdo</label>
+                                <textarea id="alert-content" class="admin-input" rows="3"
+                                    placeholder="Mensagem detalhada..." oninput="window.updateAlertPreview()"
+                                    style="resize:vertical;"></textarea>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 10px;">
+                                <label style="font-size:12px; opacity:0.7;">Mídia (Opcional)</label>
+                                <select id="alert-media-type" class="admin-input" onchange="window.toggleMediaType()"
+                                    style="margin-bottom: 5px;">
+                                    <option value="none">Nenhuma</option>
+                                    <option value="image">Imagem</option>
+                                    <option value="video">Vídeo (.mp4)</option>
+                                    <option value="iframe">iFrame / HTML Embutido</option>
+                                </select>
+
+                                <div id="media-input-container" style="display:none;">
+                                    <!-- URL Input -->
+                                    <input type="text" id="alert-media-url" class="admin-input"
+                                        placeholder="URL da Mídia (ou use Upload)" oninput="window.updateAlertPreview()"
+                                        style="margin-bottom: 5px;">
+
+                                    <!-- HTML Code Input (For iFrame/HTML Mode) -->
+                                    <textarea id="alert-html-content" class="admin-input" rows="5"
+                                        placeholder="Cole seu código HTML aqui (<iframe>, <div>, etc)..."
+                                        oninput="window.updateAlertPreview()"
+                                        style="margin-bottom: 5px; display: none; font-family: monospace; font-size: 12px;"></textarea>
+
+                                    <!-- Upload Button for Supabase -->
+                                    <div style="display:flex; align-items:center; gap:10px;">
+                                        <button class="action-button"
+                                            onclick="document.getElementById('alert-media-upload').click()"
+                                            style="background:var(--accent-color); width:auto; padding: 6px 12px; font-size:11px;">
+                                            <i class="fas fa-cloud-upload-alt"></i> Upload (Supabase)
+                                        </button>
+                                        <span id="alert-upload-status" style="font-size: 10px; opacity: 0.7;"></span>
+                                        <input type="file" id="alert-media-upload" style="display: none;"
+                                            onchange="window.handleAlertMediaUpload(this)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="admin-section">
+                            <h3>Configurações de Exibição</h3>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <div>
+                                    <label style="font-size:12px; opacity:0.7;">Público</label>
+                                    <select id="alert-audience" class="admin-input">
+                                        <option value="all">Todos os Usuários</option>
+                                        <option value="personal">Apenas Axon Personal</option>
+                                        <option value="enterprise">Apenas Axon Enterprise</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="font-size:12px; opacity:0.7;">Frequência</label>
+                                    <select id="alert-frequency" class="admin-input">
+                                        <option value="once">Uma vez apenas</option>
+                                        <option value="always">Sempre (Toda vez que abrir)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 10px;">
+                                <label style="font-size:12px; opacity:0.7;">Bloqueio de Fechamento (Propaganda)</label>
+                                <div style="display:flex; align-items:center; gap: 10px;">
+                                    <input type="number" id="alert-lock-time" class="admin-input" value="0" min="0"
+                                        placeholder="Segundos" style="width: 80px;">
+                                    <span style="font-size:11px; opacity:0.6;">segundos (0 = botão fechar
+                                        liberado)</span>
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 15px; display: flex; gap: 10px;">
+                                <button id="btn-publish-alert" class="app-modal-button" onclick="window.publishAlert()"
+                                    style="background: var(--success-color);">
+                                    <i class="fas fa-paper-plane"></i> Publicar Alerta
+                                </button>
+                                <button class="app-modal-button" onclick="window.clearAlertForm()"
+                                    style="background: var(--bg-secondary); color: var(--text-color);">
+                                    Limpar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Preview -->
+                    <div style="display: flex; flex-direction: column; align-items: center;">
+                        <span style="font-size: 12px; opacity: 0.5; margin-bottom: 10px;">PREVIEW (Tempo Real)</span>
+                        <div class="alert-preview-stage">
+                            <!-- Background Texture -->
+                            <div
+                                style="position: absolute; inset: 0; z-index: 0; opacity: 0.08; background-image: url('data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E'); pointer-events: none;">
+                            </div>
+
+                            <div class="alert-header">
+                                <div class="alert-badge">ADMIN MENSAGEM</div>
+                                <div style="font-family: monospace; font-size: 9px; opacity: 0.4;">AGORA</div>
+                            </div>
+
+                            <div class="alert-content">
+                                <h1 id="preview-title" class="alert-title">Título do Alerta</h1>
+                                <p id="preview-message" class="alert-message">O conteúdo da mensagem aparecerá aqui
+                                    conforme você digita.</p>
+
+                                <div id="preview-media" class="alert-media-container" style="display:none;">
+                                    <!-- Media element injected here -->
+                                </div>
+                            </div>
+
+                            <div class="alert-footer">
+                                <button id="preview-btn" class="alert-btn alert-btn-primary">Entendido (Fechar)</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Management List -->
+                <div class="admin-section" style="margin-top: 20px;">
+                    <h3>Alertas Ativos</h3>
+                    <div id="active-alerts-list" class="pinata-file-list">
+                        <div style="padding: 15px; text-align: center; opacity: 0.5;">Carregando alertas...</div>
+                    </div>
+                </div>
+
+                <!-- Paused Alerts List -->
+                <div class="admin-section" style="margin-top: 20px; opacity: 0.8;">
+                    <h3>Alertas Pausados</h3>
+                    <div id="paused-alerts-list" class="pinata-file-list"
+                        style="border: 1px dashed var(--border-color);">
+                        <div style="padding: 15px; text-align: center; opacity: 0.5;">Nenhum alerta pausado.</div>
+                    </div>
+                </div>
+            </div>
         </div>
+    </div>
     </div>
     </div>
 
@@ -6118,8 +6419,12 @@
         // Expose to window for external scripts (Mobile 2.0 IIFE)
         window.db = db;
         window.deleteDoc = deleteDoc;
+        window.addDoc = addDoc; // Exposed for Alert System
         window.doc = doc;
         window.collection = collection;
+        window.query = query; // Exposed for Alert System
+        window.where = where; // Exposed for Alert System
+        window.orderBy = orderBy; // Exposed for Alert System
         window.onSnapshot = onSnapshot;
         window.setDoc = setDoc;
         window.getDoc = getDoc;
@@ -15409,6 +15714,358 @@ ${instruction}
                 fmText.removeAttribute('readonly');
             }
         });
+        // --- ADMIN ALERT SYSTEM (Modular SDK) ---
+
+        window.updateAlertPreview = function () {
+            const title = document.getElementById('alert-title').value || "Título do Alerta";
+            const content = document.getElementById('alert-content').value || "O conteúdo da mensagem aparecerá aqui...";
+            const mediaType = document.getElementById('alert-media-type').value;
+            const mediaUrl = document.getElementById('alert-media-url').value;
+
+            document.getElementById('preview-title').textContent = title;
+            document.getElementById('preview-message').innerText = content;
+
+            const mediaContainer = document.getElementById('preview-media');
+            mediaContainer.innerHTML = '';
+            mediaContainer.style.display = 'none';
+
+            if (mediaType !== 'none' && mediaUrl) {
+                mediaContainer.style.display = 'flex';
+                if (mediaType === 'image') {
+                    mediaContainer.innerHTML = `<img src="${mediaUrl}" alt="Preview">`;
+                } else if (mediaType === 'video') {
+                    mediaContainer.innerHTML = `<video src="${mediaUrl}" controls autoplay loop muted></video>`;
+                } else if (mediaType === 'iframe') {
+                    mediaContainer.innerHTML = `<iframe src="${mediaUrl}"></iframe>`;
+                }
+            }
+        };
+
+        window.toggleMediaType = function () {
+            const type = document.getElementById('alert-media-type').value;
+            const container = document.getElementById('media-input-container');
+            const urlInput = document.getElementById('alert-media-url');
+            const htmlInput = document.getElementById('alert-html-content');
+
+            if (type === 'none') {
+                container.style.display = 'none';
+            } else {
+                container.style.display = 'block';
+                if (type === 'iframe') {
+                    urlInput.style.display = 'none';
+                    htmlInput.style.display = 'block';
+                } else {
+                    urlInput.style.display = 'block';
+                    htmlInput.style.display = 'none';
+                }
+            }
+            window.updateAlertPreview();
+        };
+
+        window.updateAlertPreview = function () {
+            const title = document.getElementById('alert-title').value || "Título do Alerta";
+            const content = document.getElementById('alert-content').value || "O conteúdo da mensagem aparecerá aqui...";
+            const mediaType = document.getElementById('alert-media-type').value;
+            const mediaUrl = document.getElementById('alert-media-url').value;
+            const mediaHtml = document.getElementById('alert-html-content').value;
+
+            document.getElementById('preview-title').textContent = title;
+            document.getElementById('preview-message').innerText = content;
+
+            const mediaContainer = document.getElementById('preview-media');
+            mediaContainer.innerHTML = '';
+            mediaContainer.style.display = 'none';
+
+            if (mediaType !== 'none') {
+                if (mediaType === 'iframe' && mediaHtml) {
+                    mediaContainer.style.display = 'flex';
+                    mediaContainer.innerHTML = mediaHtml; // Render Raw HTML
+                } else if (mediaUrl) {
+                    mediaContainer.style.display = 'flex';
+                    if (mediaType === 'image') {
+                        mediaContainer.innerHTML = `<img src="${mediaUrl}" alt="Preview">`;
+                    } else if (mediaType === 'video') {
+                        mediaContainer.innerHTML = `<video src="${mediaUrl}" controls autoplay loop muted></video>`;
+                    }
+                }
+            }
+        };
+
+        window.currentEditingAlertId = null;
+
+        window.publishAlert = async function () {
+            const title = document.getElementById('alert-title').value;
+            const content = document.getElementById('alert-content').value;
+
+            if (!title || !content) {
+                alert("Preencha Título e Conteúdo.");
+                return;
+            }
+
+            const alertData = {
+                title,
+                content,
+                mediaType: document.getElementById('alert-media-type').value,
+                mediaUrl: document.getElementById('alert-media-url').value,
+                mediaHtml: document.getElementById('alert-html-content').value,
+                audience: document.getElementById('alert-audience').value,
+                frequency: document.getElementById('alert-frequency').value,
+                lockTime: parseInt(document.getElementById('alert-lock-time').value) || 0,
+                // Do not overwrite createdAt on edit
+                active: true,
+                createdBy: typeof currentUser !== 'undefined' ? currentUser : "unknown"
+            };
+
+            // If Creating New
+            if (!window.currentEditingAlertId) {
+                alertData.createdAt = new Date();
+            }
+
+            try {
+                if (window.currentEditingAlertId) {
+                    await updateDoc(doc(db, 'alerts', window.currentEditingAlertId), alertData);
+                    alert("Alerta atualizado!");
+                } else {
+                    await addDoc(collection(db, 'alerts'), alertData);
+                    alert("Alerta publicado!");
+                }
+                window.clearAlertForm();
+            } catch (e) {
+                console.error("Publish Error:", e);
+                alert("Erro ao salvar: " + e.message);
+            }
+        };
+
+        window.editAlert = async function (id) {
+            try {
+                const docSnap = await getDoc(doc(db, 'alerts', id));
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    window.currentEditingAlertId = id;
+
+                    document.getElementById('alert-title').value = data.title || '';
+                    document.getElementById('alert-content').value = data.content || '';
+                    document.getElementById('alert-media-type').value = data.mediaType || 'none';
+                    document.getElementById('alert-media-url').value = data.mediaUrl || '';
+                    document.getElementById('alert-html-content').value = data.mediaHtml || '';
+                    document.getElementById('alert-audience').value = data.audience || 'all';
+                    document.getElementById('alert-frequency').value = data.frequency || 'once';
+                    document.getElementById('alert-lock-time').value = data.lockTime || 0;
+
+                    window.toggleMediaType();
+                    window.updateAlertPreview();
+
+                    // Update Button Text
+                    const btn = document.getElementById('btn-publish-alert');
+                    if (btn) btn.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
+
+                    // Scroll to top
+                    document.querySelector('.admin-panel-content')?.scrollTo(0, 0); // Attempt to scroll modal
+                }
+            } catch (e) {
+                console.error("Edit Error", e);
+            }
+        };
+
+        window.previewPausedAlert = async function (id) {
+            try {
+                const docSnap = await getDoc(doc(db, 'alerts', id));
+                if (docSnap.exists()) {
+                    showAlert(id, docSnap.data(), 'test_preview_mode');
+                }
+            } catch (e) { console.error(e); }
+        };
+
+        window.clearAlertForm = function () {
+            window.currentEditingAlertId = null;
+            document.getElementById('alert-title').value = '';
+            document.getElementById('alert-content').value = '';
+            document.getElementById('alert-media-type').value = 'none';
+            document.getElementById('alert-media-url').value = '';
+            document.getElementById('alert-html-content').value = '';
+            document.getElementById('alert-lock-time').value = '0';
+
+            const btn = document.getElementById('btn-publish-alert');
+            if (btn) btn.innerHTML = '<i class="fas fa-paper-plane"></i> Publicar Alerta';
+
+            window.toggleMediaType();
+            window.updateAlertPreview();
+        };
+
+        window.deleteAlert = async function (id) {
+            if (confirm("Excluir alerta?")) {
+                await deleteDoc(doc(db, 'alerts', id));
+            }
+        };
+
+        window.toggleAlertStatus = async function (id, currentStatus) {
+            await updateDoc(doc(db, 'alerts', id), { active: !currentStatus });
+        };
+
+        let activeAlertListenerUnsub = null;
+        function initAlertSystem() {
+            if (activeAlertListenerUnsub) return;
+            const q = query(collection(db, 'alerts'), orderBy('createdAt', 'desc'));
+
+            activeAlertListenerUnsub = onSnapshot(q, (snapshot) => {
+                const adminList = document.getElementById('active-alerts-list');
+                const pausedList = document.getElementById('paused-alerts-list');
+
+                if (adminList && pausedList) {
+                    adminList.innerHTML = '';
+                    pausedList.innerHTML = '';
+
+                    if (snapshot.empty) {
+                        adminList.innerHTML = '<div style="padding:15px;opacity:0.5;">Nenhum alerta.</div>';
+                    } else {
+                        snapshot.forEach(d => {
+                            const a = d.data();
+                            const itemHtml = `
+                                <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                                    <div>
+                                        <div style="font-weight:bold;font-size:13px;">${a.title}</div>
+                                        <div style="font-size:11px;opacity:0.6;">${a.audience} • ${a.frequency}</div>
+                                    </div>
+                                    <div style="display:flex; gap:10px;">
+                                        ${!a.active ? `<button onclick="window.previewPausedAlert('${d.id}')" style="cursor:pointer;border:none;background:none;color:var(--text-color); opacity:0.8;" title="Ver"><i class="fas fa-eye"></i></button>` : ''}
+                                        ${!a.active ? `<button onclick="window.editAlert('${d.id}')" style="cursor:pointer;border:none;background:none;color:var(--text-color); opacity:0.8;" title="Editar"><i class="fas fa-pen"></i></button>` : ''}
+                                        
+                                        <button onclick="window.toggleAlertStatus('${d.id}', ${a.active})" style="cursor:pointer;border:none;background:none;color:var(--text-color); opacity:0.8;" title="${a.active ? 'Pausar' : 'Retomar'}">
+                                            <i class="fas fa-${a.active ? 'pause' : 'play'}"></i>
+                                        </button>
+                                        <button onclick="window.deleteAlert('${d.id}')" style="cursor:pointer;border:none;background:none;color:var(--error-color);" title="Excluir">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>`;
+
+                            if (a.active) adminList.innerHTML += itemHtml;
+                            else pausedList.innerHTML += itemHtml;
+                        });
+                    }
+
+                    if (adminList.innerHTML === '') adminList.innerHTML = '<div style="padding:15px;opacity:0.5;text-align:center">Nenhum alerta ativo.</div>';
+                    if (pausedList.innerHTML === '') pausedList.innerHTML = '<div style="padding:15px;opacity:0.5;text-align:center">Nenhum alerta pausado.</div>';
+                }
+
+                snapshot.forEach(d => {
+                    const data = d.data();
+                    if (data.active) processAlertForUser(d.id, data);
+                });
+            });
+        }
+
+        async function processAlertForUser(id, alertData) {
+            let userLevel = 'personal';
+            if (typeof currentUserLevel !== 'undefined') userLevel = currentUserLevel;
+            // else try fetching from userDoc if possible or assume personal
+
+            if (alertData.audience === 'enterprise' && userLevel !== 'enterprise') return;
+            if (alertData.audience === 'personal' && userLevel !== 'personal') return;
+
+            const storageKey = `axon_alert_${id}_seen`;
+
+            // Logic for 'always': We do NOT check storage. It shows every time init is called (reload/login).
+            // Logic for 'once': We check LocalStorage.
+
+            if (alertData.frequency === 'once' && localStorage.getItem(storageKey)) return;
+
+            // Session deduplication: If we want 'always' to appear on EVERY reload, we should NOT check session storage.
+            // However, to prevent it from popping up repeatedly within the SAME dynamic session (if updates trigger listener), we should probably block it if it's currently on screen? 
+            // `showAlert` handles display logic. 
+            // The standard 'always' behavior requested is "every login or page update". 
+            // If I just let it pass, it might re-trigger if I publish another alert.
+            // Let's use session storage to prevent re-triggering on same load, but reload wipes variables so it's fine.
+            // Wait, sessionStorage PERSISTS across reloads in the same tab.
+            // If user wants "Every Login OR Page Update", then sessionStorage check should be REMOVED or ignored for 'always'.
+            // Because if I reload page, I likely want to see it again? 
+            // "Case marked always... or page update, the alert will be shown AGAIN". 
+            // So: NO SessionStorage check for 'always'.
+
+            if (alertData.frequency === 'always') {
+                // Do nothing, let it pass.
+                // Ideally we prevent spamming if data updates but page doesn't reload.
+                // effectively `activeAlertListener` fires on init.
+            } else {
+                // For safety in single-page-app, maybe use session check?
+                // But user asked to remove 'multiple'.
+            }
+
+            // To avoid infinite re-opening in SPA if listener fires multiple times:
+            // Check if overlay is already open with THIS alert?
+            const overlay = document.getElementById('axon-alert-overlay');
+            const titleEl = document.getElementById('user-alert-title');
+            if (overlay && overlay.style.display === 'flex' && titleEl && titleEl.textContent === alertData.title) {
+                return; // Already showing this alert
+            }
+
+            showAlert(id, alertData, storageKey);
+        }
+
+        function showAlert(id, data, storageKey) {
+            const overlay = document.getElementById('axon-alert-overlay');
+            if (!overlay) return;
+
+            document.getElementById('user-alert-title').textContent = data.title;
+            document.getElementById('user-alert-message').innerText = data.content;
+
+            const media = document.getElementById('user-alert-media');
+            const closeBtn = document.getElementById('user-alert-close-btn');
+
+            media.innerHTML = '';
+            media.style.display = 'none';
+
+            if (data.mediaType !== 'none') {
+                media.style.display = 'flex';
+                if (data.mediaType === 'iframe' && data.mediaHtml) {
+                     media.innerHTML = data.mediaHtml;
+                } else if (data.mediaUrl) {
+                    if (data.mediaType === 'image') media.innerHTML = `<img src="${data.mediaUrl}" alt="Media">`;
+                    else if (data.mediaType === 'video') media.innerHTML = `<video src="${data.mediaUrl}" controls autoplay></video>`;
+                    else if (data.mediaType === 'iframe') media.innerHTML = `<iframe src="${data.mediaUrl}"></iframe>`;
+                }
+            }
+
+            if (data.lockTime > 0) {
+                closeBtn.disabled = true;
+                closeBtn.style.opacity = '0.5';
+                closeBtn.style.cursor = 'not-allowed';
+                let timeLeft = data.lockTime;
+                closeBtn.textContent = `Aguarde (${timeLeft}s)`;
+                const timer = setInterval(() => {
+                    timeLeft--;
+                    if (timeLeft <= 0) {
+                        clearInterval(timer);
+                        closeBtn.disabled = false;
+                        closeBtn.style.opacity = '1';
+                        closeBtn.style.cursor = 'pointer';
+                        closeBtn.textContent = 'Entendido';
+                    } else {
+                        closeBtn.textContent = `Aguarde (${timeLeft}s)`;
+                    }
+                }, 1000);
+            } else {
+                closeBtn.disabled = false;
+                closeBtn.style.opacity = '1';
+                closeBtn.style.cursor = 'pointer';
+                closeBtn.textContent = 'Entendido';
+            }
+
+            overlay.style.display = 'flex';
+            if (data.frequency === 'once') {
+                localStorage.setItem(storageKey, Date.now());
+            }
+            sessionStorage.setItem(storageKey, true);
+        }
+
+        window.closeAxonAlert = function () {
+            document.getElementById('axon-alert-overlay').style.display = 'none';
+            document.getElementById('user-alert-media').innerHTML = '';
+        };
+
+        // Init Alert System
+        setTimeout(() => { if (typeof db !== 'undefined') initAlertSystem(); }, 5000);
+
     </script>
     <!-- MOBILE 2.0 INTEGRATION -->
     <style>
@@ -16570,6 +17227,64 @@ ${instruction}
 
         })();
     </script>
+    <!-- USER ALERT MODAL (Overlay) -->
+    <div id="axon-alert-overlay"
+        style="display: none; position: fixed; inset: 0; z-index: 999999999; justify-content: center; align-items: center; background: rgba(0,0,0,0.4); backdrop-filter: blur(8px);">
+        <!-- Re-using styles from Admin but scoped or inline for safety -->
+        <div class="alert-view-stage" style="
+            position: relative;
+            width: 90%;
+            max-width: 550px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(32px) saturate(180%);
+            -webkit-backdrop-filter: blur(32px) saturate(180%);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: #1a1a1a;
+            animation: alertPopup 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        ">
+            <style>
+                @keyframes alertPopup {
+                    0% {
+                        opacity: 0;
+                        transform: scale(0.9) translateY(20px);
+                    }
+
+                    100% {
+                        opacity: 1;
+                        transform: scale(1) translateY(0);
+                    }
+                }
+            </style>
+
+            <div class="alert-header">
+                <div class="alert-badge">MENSAGEM DO SISTEMA</div>
+                <div style="font-family: monospace; font-size: 10px; opacity: 0.5;">AGORA</div>
+            </div>
+
+            <div class="alert-content" style="padding: 0 30px 20px;">
+                <h1 id="user-alert-title" class="alert-title" style="font-size: 24px; margin-bottom: 12px;"></h1>
+                <p id="user-alert-message" class="alert-message" style="font-size: 15px; margin-bottom: 20px;"></p>
+
+                <div id="user-alert-media" class="alert-media-container" style="display:none; max-height: 300px;">
+                    <!-- Media injected here -->
+                </div>
+            </div>
+
+            <div class="alert-footer"
+                style="padding: 20px 30px; background: rgba(0,0,0,0.02); border-top: 1px solid rgba(0,0,0,0.05);">
+                <button id="user-alert-close-btn" class="alert-btn alert-btn-primary" onclick="closeAxonAlert()">
+                    Entendido
+                </button>
+            </div>
+        </div>
+    </div>
+
+
 </body>
 
 </html>
