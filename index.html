@@ -5955,6 +5955,17 @@
                                 </div>
                             </div>
 
+                            <div style="margin-top: 10px; display: flex; gap: 15px;">
+                                <div style="flex:1;">
+                                    <label style="font-size:12px; opacity:0.7;">Largura (px)</label>
+                                    <input type="number" id="alert-width" class="admin-input" placeholder="Auto (Ex: 550)" oninput="window.updateAlertPreview()">
+                                </div>
+                                <div style="flex:1;">
+                                     <label style="font-size:12px; opacity:0.7;">Altura (px)</label>
+                                     <input type="number" id="alert-height" class="admin-input" placeholder="Auto" oninput="window.updateAlertPreview()">
+                                </div>
+                            </div>
+
                             <div style="margin-top: 15px; display: flex; gap: 10px;">
                                 <button id="btn-publish-alert" class="app-modal-button" onclick="window.publishAlert()"
                                     style="background: var(--success-color);">
@@ -15770,6 +15781,22 @@ ${instruction}
             const mediaUrl = document.getElementById('alert-media-url').value;
             const mediaHtml = document.getElementById('alert-html-content').value;
 
+            // Dimensions
+            const width = document.getElementById('alert-width').value;
+            const height = document.getElementById('alert-height').value;
+            
+            const previewStage = document.querySelector('.alert-preview-stage');
+            if (previewStage) {
+                if (width) {
+                    previewStage.style.width = width + 'px';
+                    previewStage.style.maxWidth = width + 'px';
+                } else {
+                    previewStage.style.width = '100%'; 
+                    previewStage.style.maxWidth = '100%';
+                }
+                previewStage.style.height = height ? height + 'px' : 'auto';
+            }
+
             document.getElementById('preview-title').textContent = title;
             document.getElementById('preview-message').innerText = content;
 
@@ -15812,6 +15839,8 @@ ${instruction}
                 audience: document.getElementById('alert-audience').value,
                 frequency: document.getElementById('alert-frequency').value,
                 lockTime: parseInt(document.getElementById('alert-lock-time').value) || 0,
+                width: parseInt(document.getElementById('alert-width').value) || 0,
+                height: parseInt(document.getElementById('alert-height').value) || 0,
                 // Do not overwrite createdAt on edit
                 active: true,
                 createdBy: typeof currentUser !== 'undefined' ? currentUser : "unknown"
@@ -15852,6 +15881,8 @@ ${instruction}
                     document.getElementById('alert-audience').value = data.audience || 'all';
                     document.getElementById('alert-frequency').value = data.frequency || 'once';
                     document.getElementById('alert-lock-time').value = data.lockTime || 0;
+                    document.getElementById('alert-width').value = data.width || '';
+                    document.getElementById('alert-height').value = data.height || '';
 
                     window.toggleMediaType();
                     window.updateAlertPreview();
@@ -15885,6 +15916,8 @@ ${instruction}
             document.getElementById('alert-media-url').value = '';
             document.getElementById('alert-html-content').value = '';
             document.getElementById('alert-lock-time').value = '0';
+            document.getElementById('alert-width').value = '';
+            document.getElementById('alert-height').value = '';
 
             const btn = document.getElementById('btn-publish-alert');
             if (btn) btn.innerHTML = '<i class="fas fa-paper-plane"></i> Publicar Alerta';
@@ -16054,6 +16087,19 @@ ${instruction}
         function showAlert(id, data, storageKey) {
             const overlay = document.getElementById('axon-alert-overlay');
             if (!overlay) return;
+
+             // Apply Custom Dimensions
+            const viewStage = overlay.querySelector('.alert-view-stage');
+            if (viewStage) {
+                if (data.width) {
+                    viewStage.style.width = data.width + 'px';
+                    viewStage.style.maxWidth = data.width + 'px';
+                } else {
+                    viewStage.style.width = '90%';
+                    viewStage.style.maxWidth = '550px';
+                }
+                viewStage.style.height = data.height ? data.height + 'px' : 'auto';
+            }
 
             document.getElementById('user-alert-title').textContent = data.title;
             document.getElementById('user-alert-message').innerText = data.content;
