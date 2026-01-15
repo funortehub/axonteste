@@ -5931,6 +5931,7 @@
                                     <label style="font-size:12px; opacity:0.7;">Público</label>
                                     <select id="alert-audience" class="admin-input">
                                         <option value="all">Todos os Usuários</option>
+                                        <option value="all_except_admin">Todos (Exceto Administradores)</option>
                                         <option value="personal">Apenas Axon Personal</option>
                                         <option value="enterprise">Apenas Axon Enterprise</option>
                                     </select>
@@ -15955,50 +15956,98 @@ ${instruction}
             });
         }
 
+        // In-memory Set to track alerts shown in this page load (prevents 'always' re-triggers on snapshot updates)
+        const shownAlertsThisPageLoad = new Set();
+        let cachedUserAlertData = null;
+
         async function processAlertForUser(id, alertData) {
+            console.log('[AlertSystem] Processing alert:', id, alertData.title, 'Audience:', alertData.audience);
+
+            // --- LOGIN GATE (DOM-based) ---
+            if (!isUserLoggedIn()) {
+                console.log('[AlertSystem] Blocked: User not logged in');
+                return;
+            }
+
+            // --- FETCH USER DATA ---
             let userLevel = 'personal';
-            if (typeof currentUserLevel !== 'undefined') userLevel = currentUserLevel;
-            // else try fetching from userDoc if possible or assume personal
+            let userIsAdmin = false;
 
-            if (alertData.audience === 'enterprise' && userLevel !== 'enterprise') return;
-            if (alertData.audience === 'personal' && userLevel !== 'personal') return;
+            try {
+                const storedUser = localStorage.getItem('axon_logged_in_user');
+                if (storedUser) {
+                    if (cachedUserAlertData && cachedUserAlertData.username === storedUser) {
+                        userLevel = cachedUserAlertData.accountLevel;
+                        userIsAdmin = cachedUserAlertData.isAdmin;
+                    } else {
+                        // Fetch fresh data
+                        // Ensure doc/getDoc availability or use global shim if needed, but assuming global availability based on file structure
+                        const userDocRef = doc(db, "users", storedUser);
+                        const userSnap = await getDoc(userDocRef);
+                        if (userSnap.exists()) {
+                            const uData = userSnap.data();
+                            userLevel = uData.accountLevel || 'personal';
+                            userIsAdmin = uData.isAdmin || false;
 
+                            cachedUserAlertData = {
+                                username: storedUser,
+                                accountLevel: userLevel,
+                                isAdmin: userIsAdmin
+                            };
+                        }
+                    }
+                } else {
+                    console.log('[AlertSystem] Warning: No user in localStorage, default to personal');
+                }
+            } catch (err) {
+                console.warn('[AlertSystem] Error fetching user data, using defaults:', err);
+            }
+
+            console.log('[AlertSystem] User context (Resolved):', { userLevel, userIsAdmin });
+
+            // Apply audience filter (skip for 'all' audience)
+            if (alertData.audience === 'enterprise' && userLevel !== 'enterprise') {
+                console.log('[AlertSystem] Blocked: Enterprise only');
+                return;
+            }
+            if (alertData.audience === 'personal' && userLevel !== 'personal') {
+                console.log('[AlertSystem] Blocked: Personal only');
+                return;
+            }
+            if (alertData.audience === 'all_except_admin' && userIsAdmin) {
+                console.log('[AlertSystem] Blocked: Not for admins');
+                return;
+            }
+            // NOTE: 'all' audience passes through without any check
+
+            // --- FREQUENCY CHECK ---
             const storageKey = `axon_alert_${id}_seen`;
 
-            // Logic for 'always': We do NOT check storage. It shows every time init is called (reload/login).
-            // Logic for 'once': We check LocalStorage.
-
-            if (alertData.frequency === 'once' && localStorage.getItem(storageKey)) return;
-
-            // Session deduplication: If we want 'always' to appear on EVERY reload, we should NOT check session storage.
-            // However, to prevent it from popping up repeatedly within the SAME dynamic session (if updates trigger listener), we should probably block it if it's currently on screen? 
-            // `showAlert` handles display logic. 
-            // The standard 'always' behavior requested is "every login or page update". 
-            // If I just let it pass, it might re-trigger if I publish another alert.
-            // Let's use session storage to prevent re-triggering on same load, but reload wipes variables so it's fine.
-            // Wait, sessionStorage PERSISTS across reloads in the same tab.
-            // If user wants "Every Login OR Page Update", then sessionStorage check should be REMOVED or ignored for 'always'.
-            // Because if I reload page, I likely want to see it again? 
-            // "Case marked always... or page update, the alert will be shown AGAIN". 
-            // So: NO SessionStorage check for 'always'.
-
-            if (alertData.frequency === 'always') {
-                // Do nothing, let it pass.
-                // Ideally we prevent spamming if data updates but page doesn't reload.
-                // effectively `activeAlertListener` fires on init.
-            } else {
-                // For safety in single-page-app, maybe use session check?
-                // But user asked to remove 'multiple'.
+            // For 'once': Check LocalStorage
+            if (alertData.frequency === 'once' && localStorage.getItem(storageKey)) {
+                console.log('[AlertSystem] Blocked: Already seen (once)');
+                return;
             }
 
-            // To avoid infinite re-opening in SPA if listener fires multiple times:
-            // Check if overlay is already open with THIS alert?
+            // For 'always': Check in-memory Set (prevents re-showing on snapshot update, but allows on page reload)
+            if (alertData.frequency === 'always' && shownAlertsThisPageLoad.has(id)) {
+                console.log('[AlertSystem] Blocked: Already shown this page load (always)');
+                return;
+            }
+
+            // --- PREVENT DUPLICATE DISPLAY ---
             const overlay = document.getElementById('axon-alert-overlay');
-            const titleEl = document.getElementById('user-alert-title');
-            if (overlay && overlay.style.display === 'flex' && titleEl && titleEl.textContent === alertData.title) {
-                return; // Already showing this alert
+            if (overlay && overlay.style.display === 'flex') {
+                console.log('[AlertSystem] Blocked: Another alert is open');
+                return; // An alert is already open, don't stack them
             }
 
+            // Mark as shown for 'always' frequency
+            if (alertData.frequency === 'always') {
+                shownAlertsThisPageLoad.add(id);
+            }
+
+            console.log('[AlertSystem] Showing alert:', id);
             showAlert(id, alertData, storageKey);
         }
 
@@ -16018,7 +16067,7 @@ ${instruction}
             if (data.mediaType !== 'none') {
                 media.style.display = 'flex';
                 if (data.mediaType === 'iframe' && data.mediaHtml) {
-                     media.innerHTML = data.mediaHtml;
+                    media.innerHTML = data.mediaHtml;
                 } else if (data.mediaUrl) {
                     if (data.mediaType === 'image') media.innerHTML = `<img src="${data.mediaUrl}" alt="Media">`;
                     else if (data.mediaType === 'video') media.innerHTML = `<video src="${data.mediaUrl}" controls autoplay></video>`;
@@ -16063,8 +16112,23 @@ ${instruction}
             document.getElementById('user-alert-media').innerHTML = '';
         };
 
-        // Init Alert System
-        setTimeout(() => { if (typeof db !== 'undefined') initAlertSystem(); }, 5000);
+        // Init Alert System - Wait for login (DOM-based detection)
+        function isUserLoggedIn() {
+            const loginModal = document.getElementById('login-modal');
+            // User is logged in if login modal exists and is hidden
+            return loginModal && (loginModal.style.display === 'none' || loginModal.classList.contains('hidden'));
+        }
+
+        function tryInitAlertSystem() {
+            if (typeof db !== 'undefined' && isUserLoggedIn()) {
+                console.log('[AlertSystem] User logged in (login modal hidden), initializing...');
+                initAlertSystem();
+            } else {
+                console.log('[AlertSystem] Waiting for login... loginModal visible:', document.getElementById('login-modal')?.style.display);
+                setTimeout(tryInitAlertSystem, 2000);
+            }
+        }
+        setTimeout(tryInitAlertSystem, 3000);
 
     </script>
     <!-- MOBILE 2.0 INTEGRATION -->
