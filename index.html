@@ -16198,7 +16198,8 @@ ${instruction}
             // NOTE: 'all' audience passes through without any check
 
             // --- FREQUENCY CHECK ---
-            const storageKey = `axon_alert_${id}_seen`;
+            const storedUser = localStorage.getItem('axon_logged_in_user') || 'anonymous';
+            const storageKey = `axon_alert_${storedUser}_${id}_seen`;
 
             // For 'once': Check LocalStorage
             if (alertData.frequency === 'once' && localStorage.getItem(storageKey)) {
