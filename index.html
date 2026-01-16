@@ -15911,6 +15911,7 @@ ${instruction}
             // If Creating New
             if (!window.currentEditingAlertId) {
                 alertData.createdAt = new Date();
+                alertData.priority = Date.now(); // Lower = higher priority. New alerts get lowest priority.
             }
 
             try {
@@ -15991,6 +15992,62 @@ ${instruction}
             window.updateAlertPreview();
         };
 
+        // Drag-and-Drop for Alert Priority Reordering
+        let draggedAlertItem = null;
+
+        function initAlertDragAndDrop(container) {
+            if (!container) return;
+
+            const items = container.querySelectorAll('.alert-list-item[draggable="true"]');
+            items.forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    draggedAlertItem = item;
+                    item.style.opacity = '0.5';
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+
+                item.addEventListener('dragend', () => {
+                    item.style.opacity = '1';
+                    draggedAlertItem = null;
+                });
+
+                item.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                });
+
+                item.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    if (!draggedAlertItem || draggedAlertItem === item) return;
+
+                    // Reorder in DOM
+                    const allItems = [...container.querySelectorAll('.alert-list-item[draggable="true"]')];
+                    const draggedIndex = allItems.indexOf(draggedAlertItem);
+                    const targetIndex = allItems.indexOf(item);
+
+                    if (draggedIndex < targetIndex) {
+                        item.parentNode.insertBefore(draggedAlertItem, item.nextSibling);
+                    } else {
+                        item.parentNode.insertBefore(draggedAlertItem, item);
+                    }
+
+                    // Update priorities in Firebase based on new DOM order
+                    const reorderedItems = [...container.querySelectorAll('.alert-list-item[draggable="true"]')];
+                    const updates = reorderedItems.map((el, index) => {
+                        const alertId = el.dataset.id;
+                        return updateDoc(doc(db, 'alerts', alertId), { priority: index });
+                    });
+
+                    try {
+                        await Promise.all(updates);
+                        console.log('[AlertSystem] Priority order updated.');
+                    } catch (err) {
+                        console.error('[AlertSystem] Failed to update priority:', err);
+                    }
+                });
+            });
+        }
+
         window.deleteAlert = async function (id) {
             if (confirm("Excluir alerta?")) {
                 await deleteDoc(doc(db, 'alerts', id));
@@ -16004,7 +16061,7 @@ ${instruction}
         let activeAlertListenerUnsub = null;
         function initAlertSystem() {
             if (activeAlertListenerUnsub) return;
-            const q = query(collection(db, 'alerts'), orderBy('createdAt', 'desc'));
+            const q = query(collection(db, 'alerts'), orderBy('priority', 'asc'));
 
             activeAlertListenerUnsub = onSnapshot(q, (snapshot) => {
                 const adminList = document.getElementById('active-alerts-list');
@@ -16020,10 +16077,13 @@ ${instruction}
                         snapshot.forEach(d => {
                             const a = d.data();
                             const itemHtml = `
-                                <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
-                                    <div>
-                                        <div style="font-weight:bold;font-size:13px;">${a.title}</div>
-                                        <div style="font-size:11px;opacity:0.6;">${a.audience} • ${a.frequency}</div>
+                                <div class="alert-list-item" draggable="${a.active ? 'true' : 'false'}" data-id="${d.id}" style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; ${a.active ? 'cursor:grab;' : ''}">
+                                    <div style="display:flex; align-items:center; gap:10px;">
+                                        ${a.active ? '<i class="fas fa-grip-vertical" style="opacity:0.4; cursor:grab;"></i>' : ''}
+                                        <div>
+                                            <div style="font-weight:bold;font-size:13px;">${a.title}</div>
+                                            <div style="font-size:11px;opacity:0.6;">${a.audience} • ${a.frequency}</div>
+                                        </div>
                                     </div>
                                     <div style="display:flex; gap:10px;">
                                         ${!a.active ? `<button onclick="window.previewPausedAlert('${d.id}')" style="cursor:pointer;border:none;background:none;color:var(--text-color); opacity:0.8;" title="Ver"><i class="fas fa-eye"></i></button>` : ''}
@@ -16045,18 +16105,33 @@ ${instruction}
 
                     if (adminList.innerHTML === '') adminList.innerHTML = '<div style="padding:15px;opacity:0.5;text-align:center">Nenhum alerta ativo.</div>';
                     if (pausedList.innerHTML === '') pausedList.innerHTML = '<div style="padding:15px;opacity:0.5;text-align:center">Nenhum alerta pausado.</div>';
+
+                    // Initialize Drag-and-Drop for Active Alerts
+                    initAlertDragAndDrop(adminList);
                 }
 
                 snapshot.forEach(d => {
                     const data = d.data();
                     if (data.active) processAlertForUser(d.id, data);
                 });
+
+                // After processing all alerts, sort and show first
+                setTimeout(() => {
+                    window.alertQueue.sort((a, b) => (a.data.priority || Infinity) - (b.data.priority || Infinity));
+                    console.log('[AlertSystem] Queue ready:', window.alertQueue.map(a => a.data.title));
+                    window.alertQueueReady = true;
+                    window.showNextAlert();
+                }, 500); // Small delay to allow all async processAlertForUser calls to complete
             });
         }
 
         // In-memory Set to track alerts shown in this page load (prevents 'always' re-triggers on snapshot updates)
         const shownAlertsThisPageLoad = new Set();
         let cachedUserAlertData = null;
+
+        // Alert Queue System
+        window.alertQueue = [];
+        window.alertQueueReady = false;
 
         async function processAlertForUser(id, alertData) {
             console.log('[AlertSystem] Processing alert:', id, alertData.title, 'Audience:', alertData.audience);
@@ -16137,20 +16212,14 @@ ${instruction}
                 return;
             }
 
-            // --- PREVENT DUPLICATE DISPLAY ---
-            const overlay = document.getElementById('axon-alert-overlay');
-            if (overlay && overlay.style.display === 'flex') {
-                console.log('[AlertSystem] Blocked: Another alert is open');
-                return; // An alert is already open, don't stack them
+            // --- PREVENT DUPLICATE IN QUEUE ---
+            if (window.alertQueue.some(item => item.id === id)) {
+                console.log('[AlertSystem] Blocked: Already in queue');
+                return;
             }
 
-            // Mark as shown for 'always' frequency
-            if (alertData.frequency === 'always') {
-                shownAlertsThisPageLoad.add(id);
-            }
-
-            console.log('[AlertSystem] Showing alert:', id);
-            showAlert(id, alertData, storageKey);
+            console.log('[AlertSystem] Adding to queue:', id);
+            window.alertQueue.push({ id, data: alertData, storageKey });
         }
 
         function showAlert(id, data, storageKey) {
@@ -16238,6 +16307,35 @@ ${instruction}
         window.closeAxonAlert = function () {
             document.getElementById('axon-alert-overlay').style.display = 'none';
             document.getElementById('user-alert-media').innerHTML = '';
+            // Show next alert in queue
+            if (typeof window.showNextAlert === 'function') {
+                window.showNextAlert();
+            }
+        };
+
+        window.showNextAlert = function () {
+            if (!window.alertQueueReady || window.alertQueue.length === 0) {
+                console.log('[AlertSystem] Queue empty or not ready.');
+                return;
+            }
+
+            const overlay = document.getElementById('axon-alert-overlay');
+            if (overlay && overlay.style.display === 'flex') {
+                console.log('[AlertSystem] showNextAlert: Overlay still visible, skipping.');
+                return;
+            }
+
+            const next = window.alertQueue.shift();
+            if (!next) return;
+
+            console.log('[AlertSystem] Showing next alert:', next.data.title);
+
+            // Mark as shown for 'always' frequency
+            if (next.data.frequency === 'always') {
+                shownAlertsThisPageLoad.add(next.id);
+            }
+
+            showAlert(next.id, next.data, next.storageKey);
         };
 
         // Init Alert System - Wait for login (DOM-based detection)
