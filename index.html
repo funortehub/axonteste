@@ -5498,6 +5498,14 @@
                     <i class="fas fa-circle-exclamation" style="font-size: 18px;"></i>
                     <span>Sua assinatura expirou. Entre em contato com o suporte para renovar.</span>
                 </div>
+
+                <!-- Student Disclaimer -->
+                <div id="user-info-student-warning"
+                    style="display:none; text-align:center; opacity:0.75; font-size:12px; margin-top:20px; padding:15px; border-top:1px solid rgba(255,255,255,0.1); color: var(--text-muted); line-height: 1.4;">
+                    <i class="fas fa-info-circle" style="margin-bottom:8px; display:block; font-size:16px;"></i>
+                    <span>(!) Sua conta é licenciada como "estudante" e pode ter algumas limitações. Seu uso é liberado
+                        apenas para uso acadêmico, sem fins comerciais.</span>
+                </div>
             </div>
         </div>
     </div>
@@ -5551,6 +5559,7 @@
                             style="flex:1; background: var(--bg-secondary); color: var(--text-color);">
                             <option value="personal">Axon Personal</option>
                             <option value="enterprise">Axon Enterprise</option>
+                            <option value="student">Axon Student</option>
                         </select>
                     </div>
                     <div style="display:flex;gap:10px;margin-bottom:10px; align-items:center;">
@@ -5937,6 +5946,7 @@
                                         <option value="all_except_admin">Todos (Exceto Administradores)</option>
                                         <option value="personal">Apenas Axon Personal</option>
                                         <option value="enterprise">Apenas Axon Enterprise</option>
+                                        <option value="student">Apenas Estudantes (Student)</option>
                                     </select>
                                 </div>
                                 <div>
@@ -5968,7 +5978,7 @@
                                     <label style="font-size:12px; opacity:0.7;">Altura (px)</label>
                                     <input type="number" id="alert-height" class="admin-input" placeholder="Auto"
                                         oninput="window.updateAlertPreview()">
-                                    
+
                                     <!-- Hidden Fields for Visual styling -->
                                     <input type="hidden" id="alert-close-size" value="24">
                                     <input type="hidden" id="alert-close-color" value="#000000">
@@ -5981,8 +5991,9 @@
                                     style="background: var(--success-color);">
                                     <i class="fas fa-paper-plane"></i> Publicar Alerta
                                 </button>
-                                <button class="app-modal-button" onclick="window.previewCurrentAlert()" 
-                                    style="background: var(--button-bg); border: 1px solid var(--border-color); color: var(--text-color);" title="Testar o popup real">
+                                <button class="app-modal-button" onclick="window.previewCurrentAlert()"
+                                    style="background: var(--button-bg); border: 1px solid var(--border-color); color: var(--text-color);"
+                                    title="Testar o popup real">
                                     <i class="fas fa-eye"></i> Testar
                                 </button>
                                 <button class="app-modal-button" onclick="window.clearAlertForm()"
@@ -5995,9 +6006,11 @@
 
                     <!-- Right: Preview -->
                     <div style="display: flex; flex-direction: column; align-items: center;">
-                        <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <div
+                            style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                             <span style="font-size: 12px; opacity: 0.5;">PREVIEW (Tempo Real)</span>
-                            <button onclick="window.openVisualEditor()" style="padding: 4px 10px; font-size: 11px; background: var(--highlight-color); border: none; border-radius: 4px; color: white; cursor: pointer;">
+                            <button onclick="window.openVisualEditor()"
+                                style="padding: 4px 10px; font-size: 11px; background: var(--highlight-color); border: none; border-radius: 4px; color: white; cursor: pointer;">
                                 <i class="fas fa-edit"></i> Editor Visual
                             </button>
                         </div>
@@ -12561,6 +12574,8 @@ ${instruction}
             const badgeEl = document.getElementById('user-info-badge');
             const emailEl = document.getElementById('user-info-email');
             const createdEl = document.getElementById('user-info-created');
+            const avatarEl = document.getElementById('user-info-avatar');
+            const studentWarning = document.getElementById('user-info-student-warning');
 
             usernameEl.textContent = currentUserData.username || currentUser; // Fallback
 
@@ -12573,10 +12588,28 @@ ${instruction}
                 badgeEl.textContent = 'Axon Enterprise';
                 badgeEl.style.backgroundColor = '#805ad5'; // Purple
                 badgeEl.style.color = '#fff';
+            } else if (currentUserData.accountLevel === 'student') {
+                badgeEl.textContent = 'AXON STUDENT';
+                badgeEl.style.backgroundColor = '#f59e0b'; // Yellow
+                badgeEl.style.color = '#fff';
+                // Custom Icon
+                if (avatarEl) {
+                    avatarEl.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/4807/4807453.png" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">';
+                }
             } else {
                 badgeEl.textContent = 'Axon Personal';
                 badgeEl.style.backgroundColor = '#3182ce'; // Blue
                 badgeEl.style.color = '#fff';
+            }
+
+            // Student Warning
+            if (studentWarning) {
+                studentWarning.style.display = (currentUserData.accountLevel === 'student') ? 'block' : 'none';
+            }
+
+            // Reset Avatar for non-students (if needed, or just keep as is if not student)
+            if (currentUserData.accountLevel !== 'student' && avatarEl && avatarEl.querySelector('img')) {
+                avatarEl.innerHTML = '<i class="fas fa-user-shield"></i>';
             }
 
             emailEl.textContent = currentUserData.email || 'Não informado';
@@ -16083,6 +16116,10 @@ ${instruction}
                 console.log('[AlertSystem] Blocked: Not for admins');
                 return;
             }
+            if (alertData.audience === 'student' && userLevel !== 'student') {
+                console.log('[AlertSystem] Blocked: Student only');
+                return;
+            }
             // NOTE: 'all' audience passes through without any check
 
             // --- FREQUENCY CHECK ---
@@ -16219,81 +16256,81 @@ ${instruction}
                 setTimeout(tryInitAlertSystem, 2000);
             }
         }
-    /* --- VISUAL ALERT EDITOR LOGIC --- */
-    window.openVisualEditor = function () {
-        const modal = document.getElementById('visual-editor-modal');
-        if (!modal) return;
-        modal.style.display = 'flex';
+        /* --- VISUAL ALERT EDITOR LOGIC --- */
+        window.openVisualEditor = function () {
+            const modal = document.getElementById('visual-editor-modal');
+            if (!modal) return;
+            modal.style.display = 'flex';
 
-        // Sync Main -> Editor
-        const w = document.getElementById('alert-width').value;
-        const h = document.getElementById('alert-height').value;
-        
-        document.getElementById('ve-width').value = w || '550'; // Default width if auto
-        document.getElementById('ve-height').value = h || '';
-        document.getElementById('ve-close-size').value = document.getElementById('alert-close-size').value || '24';
-        document.getElementById('ve-close-color').value = document.getElementById('alert-close-color').value || '#000000';
-        document.getElementById('ve-media-height').value = document.getElementById('alert-media-height').value || '';
-        document.getElementById('ve-close-size-val').textContent = document.getElementById('ve-close-size').value;
+            // Sync Main -> Editor
+            const w = document.getElementById('alert-width').value;
+            const h = document.getElementById('alert-height').value;
 
-        window.renderVisualAlert();
-    };
+            document.getElementById('ve-width').value = w || '550'; // Default width if auto
+            document.getElementById('ve-height').value = h || '';
+            document.getElementById('ve-close-size').value = document.getElementById('alert-close-size').value || '24';
+            document.getElementById('ve-close-color').value = document.getElementById('alert-close-color').value || '#000000';
+            document.getElementById('ve-media-height').value = document.getElementById('alert-media-height').value || '';
+            document.getElementById('ve-close-size-val').textContent = document.getElementById('ve-close-size').value;
 
-    window.renderVisualAlert = function () {
-        const stage = document.getElementById('ve-alert-stage');
-        if (!stage) return;
-        
-        // Gather Data
-        const title = document.getElementById('alert-title').value || "Título Exemplo";
-        const content = document.getElementById('alert-content').value || "Conteúdo para visualização.";
-        const mediaType = document.getElementById('alert-media-type').value;
-        const mediaUrl = document.getElementById('alert-media-url').value;
-        const mediaHtml = document.getElementById('alert-html-content').value;
+            window.renderVisualAlert();
+        };
 
-        // Dimensions
-        const w = document.getElementById('ve-width').value || '550';
-        const h = document.getElementById('ve-height').value;
-        const closeSize = document.getElementById('ve-close-size').value;
-        const closeColor = document.getElementById('ve-close-color').value;
-        const mediaHeight = document.getElementById('ve-media-height').value;
+        window.renderVisualAlert = function () {
+            const stage = document.getElementById('ve-alert-stage');
+            if (!stage) return;
 
-        // Apply to Stage Container
-        stage.style.width = w + 'px';
-        stage.style.height = h ? h + 'px' : 'auto';
-        stage.style.background = 'rgba(255, 255, 255, 0.85)';
-        stage.style.backdropFilter = 'blur(32px) saturate(180%)';
-        stage.style.webkitBackdropFilter = 'blur(32px) saturate(180%)';
-        stage.style.borderRadius = '24px';
-        stage.style.padding = '0 30px 20px'; // Matched padding logic (header has padding, content has padding)
-        // Wait, real alert splits padding. Header is separate. 
-        // Real Alert: .alert-view-stage { padding: 0 (overflow hidden) } .alert-content { padding: 0 30px 20px }
-        // For Editor, we used simple padding causing content shift?
-        // Let's use simple padding for now but closer to source.
-        stage.style.padding = '0'; // Reset styling to match real container
-        stage.style.display = 'flex';
-        stage.style.flexDirection = 'column';
-        stage.style.position = 'relative';
-        stage.style.color = '#1a1a1a';
-        stage.style.boxShadow = '0 20px 60px rgba(0,0,0,0.2)';
-        stage.style.fontFamily = "'Plus Jakarta Sans', sans-serif";
-        stage.style.overflow = 'hidden';
+            // Gather Data
+            const title = document.getElementById('alert-title').value || "Título Exemplo";
+            const content = document.getElementById('alert-content').value || "Conteúdo para visualização.";
+            const mediaType = document.getElementById('alert-media-type').value;
+            const mediaUrl = document.getElementById('alert-media-url').value;
+            const mediaHtml = document.getElementById('alert-html-content').value;
 
-        // Build Inner HTML (Simulating Alert Structure)
-        let mediaBlock = '';
-        if (mediaType !== 'none') {
-            let innerMedia = '';
-            if (mediaType === 'iframe' && mediaHtml) {
+            // Dimensions
+            const w = document.getElementById('ve-width').value || '550';
+            const h = document.getElementById('ve-height').value;
+            const closeSize = document.getElementById('ve-close-size').value;
+            const closeColor = document.getElementById('ve-close-color').value;
+            const mediaHeight = document.getElementById('ve-media-height').value;
+
+            // Apply to Stage Container
+            stage.style.width = w + 'px';
+            stage.style.height = h ? h + 'px' : 'auto';
+            stage.style.background = 'rgba(255, 255, 255, 0.85)';
+            stage.style.backdropFilter = 'blur(32px) saturate(180%)';
+            stage.style.webkitBackdropFilter = 'blur(32px) saturate(180%)';
+            stage.style.borderRadius = '24px';
+            stage.style.padding = '0 30px 20px'; // Matched padding logic (header has padding, content has padding)
+            // Wait, real alert splits padding. Header is separate. 
+            // Real Alert: .alert-view-stage { padding: 0 (overflow hidden) } .alert-content { padding: 0 30px 20px }
+            // For Editor, we used simple padding causing content shift?
+            // Let's use simple padding for now but closer to source.
+            stage.style.padding = '0'; // Reset styling to match real container
+            stage.style.display = 'flex';
+            stage.style.flexDirection = 'column';
+            stage.style.position = 'relative';
+            stage.style.color = '#1a1a1a';
+            stage.style.boxShadow = '0 20px 60px rgba(0,0,0,0.2)';
+            stage.style.fontFamily = "'Plus Jakarta Sans', sans-serif";
+            stage.style.overflow = 'hidden';
+
+            // Build Inner HTML (Simulating Alert Structure)
+            let mediaBlock = '';
+            if (mediaType !== 'none') {
+                let innerMedia = '';
+                if (mediaType === 'iframe' && mediaHtml) {
                     innerMedia = `<div style="width:100%; height:100%; background: #eee; display:flex; align-items:center; justify-content:center; border:1px dashed #ccc; padding:10px; color:#666; font-size:12px;">iFrame / HTML Preview<br>(Simplified for Editor)</div>`;
-            } else if (mediaUrl) {
+                } else if (mediaUrl) {
                     if (mediaType === 'image') innerMedia = `<img src="${mediaUrl}" style="max-width:100%; max-height:100%; object-fit:contain;">`;
                     else innerMedia = `<div style="width:100%; height:100%; background:#eee; display:flex; align-items:center; justify-content:center; color:#666;">Video Preview</div>`;
-            }
-            
-            const mhStyle = mediaHeight ? `height:${mediaHeight}px` : 'min-height:200px';
-            mediaBlock = `<div style="margin-top:15px; width:100%; ${mhStyle}; display:flex; align-items:center; justify-content:center; background:#f9f9f9; overflow:hidden; border-radius:8px;">${innerMedia}</div>`;
-        }
+                }
 
-        stage.innerHTML = `
+                const mhStyle = mediaHeight ? `height:${mediaHeight}px` : 'min-height:200px';
+                mediaBlock = `<div style="margin-top:15px; width:100%; ${mhStyle}; display:flex; align-items:center; justify-content:center; background:#f9f9f9; overflow:hidden; border-radius:8px;">${innerMedia}</div>`;
+            }
+
+            stage.innerHTML = `
             <div style="position: absolute; top: 10px; right: 10px; z-index: 10;">
                 <button style="background: none; border: none; font-size: ${closeSize}px; color: ${closeColor}; cursor: pointer; line-height: 1; padding:0; opacity:0.7;">&times;</button>
             </div>
@@ -16309,60 +16346,60 @@ ${instruction}
             <!-- Resize Handle -->
             <div id="ve-resize-handle" style="width: 25px; height: 25px; position: absolute; bottom: 0; right: 0; cursor: se-resize; background: linear-gradient(135deg, transparent 50%, var(--highlight-color, #007bff) 50%); border-radius: 0 0 8px 0; pointer-events:all;"></div>
         `;
-        
-        // Re-attach drag events
-        const handle = document.getElementById('ve-resize-handle');
-        if(handle) {
-            handle.addEventListener('mousedown', initResizeDrag);
-        }
-    };
 
-    window.updateVisualEditorFromInputs = function() {
-        document.getElementById('ve-close-size-val').textContent = document.getElementById('ve-close-size').value;
-        window.renderVisualAlert();
-    };
+            // Re-attach drag events
+            const handle = document.getElementById('ve-resize-handle');
+            if (handle) {
+                handle.addEventListener('mousedown', initResizeDrag);
+            }
+        };
 
-    window.applyVisualEditor = function() {
+        window.updateVisualEditorFromInputs = function () {
+            document.getElementById('ve-close-size-val').textContent = document.getElementById('ve-close-size').value;
+            window.renderVisualAlert();
+        };
+
+        window.applyVisualEditor = function () {
             document.getElementById('alert-width').value = document.getElementById('ve-width').value;
             document.getElementById('alert-height').value = document.getElementById('ve-height').value;
             document.getElementById('alert-close-size').value = document.getElementById('ve-close-size').value;
             document.getElementById('alert-close-color').value = document.getElementById('ve-close-color').value;
             document.getElementById('alert-media-height').value = document.getElementById('ve-media-height').value;
-            
-            document.getElementById('visual-editor-modal').style.display='none';
+
+            document.getElementById('visual-editor-modal').style.display = 'none';
             window.updateAlertPreview();
-    };
+        };
 
-    function initResizeDrag(e) {
-        e.preventDefault();
-        e.stopPropagation(); // Stop bubbling
-        const stage = document.getElementById('ve-alert-stage');
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const startW = stage.offsetWidth;
-        const startH = stage.offsetHeight;
+        function initResizeDrag(e) {
+            e.preventDefault();
+            e.stopPropagation(); // Stop bubbling
+            const stage = document.getElementById('ve-alert-stage');
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const startW = stage.offsetWidth;
+            const startH = stage.offsetHeight;
 
-        function doDrag(e) {
-            const newW = Math.max(300, startW + e.clientX - startX); 
-            const newH = Math.max(200, startH + e.clientY - startY); 
-            stage.style.width = newW + 'px';
-            stage.style.height = newH + 'px';
-            
-            // Update Inputs
-            document.getElementById('ve-width').value = newW;
-            document.getElementById('ve-height').value = newH;
+            function doDrag(e) {
+                const newW = Math.max(300, startW + e.clientX - startX);
+                const newH = Math.max(200, startH + e.clientY - startY);
+                stage.style.width = newW + 'px';
+                stage.style.height = newH + 'px';
+
+                // Update Inputs
+                document.getElementById('ve-width').value = newW;
+                document.getElementById('ve-height').value = newH;
+            }
+
+            function stopDrag() {
+                window.removeEventListener('mousemove', doDrag);
+                window.removeEventListener('mouseup', stopDrag);
+            }
+
+            window.addEventListener('mousemove', doDrag);
+            window.addEventListener('mouseup', stopDrag);
         }
 
-        function stopDrag() {
-            window.removeEventListener('mousemove', doDrag);
-            window.removeEventListener('mouseup', stopDrag);
-        }
-
-        window.addEventListener('mousemove', doDrag);
-        window.addEventListener('mouseup', stopDrag);
-    }
-    
-    window.previewCurrentAlert = function() {
+        window.previewCurrentAlert = function () {
             const data = {
                 title: document.getElementById('alert-title').value,
                 content: document.getElementById('alert-content').value,
@@ -16376,72 +16413,91 @@ ${instruction}
                 closeBtnColor: document.getElementById('alert-close-color').value || '#000000',
                 mediaHeight: parseInt(document.getElementById('alert-media-height').value) || 0,
                 frequency: 'once',
-                createdAt: { seconds: Date.now()/1000 } // Dummy timestamp
+                createdAt: { seconds: Date.now() / 1000 } // Dummy timestamp
             };
-            
+
             console.log("PREVIEWING:", data);
             showAlert('PREVIEW_TEST_' + Date.now(), data, 'test_mode');
-    };
+        };
 
-    setTimeout(tryInitAlertSystem, 3000);
+        setTimeout(tryInitAlertSystem, 3000);
 
     </script>
     <!-- VISUAL ALERT EDITOR MODAL -->
-    <div id="visual-editor-modal" class="custom-modal" style="display:none; z-index: 10000; align-items: center; justify-content: center;">
-        <div class="custom-modal-content" style="width: 95vw; height: 90vh; max-width: none; display: flex; flex-direction: column; padding: 0; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
+    <div id="visual-editor-modal" class="custom-modal"
+        style="display:none; z-index: 10000; align-items: center; justify-content: center;">
+        <div class="custom-modal-content"
+            style="width: 95vw; height: 90vh; max-width: none; display: flex; flex-direction: column; padding: 0; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
             <!-- Header -->
-            <div style="padding: 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-secondary);">
+            <div
+                style="padding: 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-secondary);">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <i class="fas fa-edit" style="color:var(--highlight-color)"></i>
                     <h3 style="margin:0; font-size: 16px;">Editor Visual de Alertas</h3>
                 </div>
-                <button onclick="document.getElementById('visual-editor-modal').style.display='none'" style="background:none; border:none; cursor:pointer; color:var(--text-color); font-size:16px;"><i class="fas fa-times"></i></button>
+                <button onclick="document.getElementById('visual-editor-modal').style.display='none'"
+                    style="background:none; border:none; cursor:pointer; color:var(--text-color); font-size:16px;"><i
+                        class="fas fa-times"></i></button>
             </div>
             <!-- Body -->
             <div style="flex:1; display:flex; overflow: hidden;">
                 <!-- Canvas -->
-                <div id="visual-editor-canvas" style="flex:1; background: #121212; position: relative; overflow: auto; display: flex; justify-content: center; align-items: center; background-image: radial-gradient(#333 1px, transparent 1px); background-size: 20px 20px;">
+                <div id="visual-editor-canvas"
+                    style="flex:1; background: #121212; position: relative; overflow: auto; display: flex; justify-content: center; align-items: center; background-image: radial-gradient(#333 1px, transparent 1px); background-size: 20px 20px;">
                     <!-- Alert Element will be injected here via JS -->
                     <div id="ve-alert-stage" style="position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.5);"></div>
                 </div>
                 <!-- Controls -->
-                <div style="width: 320px; background: var(--bg-secondary); border-left: 1px solid var(--border-color); padding: 20px; overflow-y: auto; display:flex; flex-direction:column;">
-                    <h4 style="font-size: 13px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8;">Propriedades</h4>
-                    
+                <div
+                    style="width: 320px; background: var(--bg-secondary); border-left: 1px solid var(--border-color); padding: 20px; overflow-y: auto; display:flex; flex-direction:column;">
+                    <h4
+                        style="font-size: 13px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8;">
+                        Propriedades</h4>
+
                     <div style="margin-bottom: 20px;">
-                        <label style="font-size: 11px; opacity: 0.7; display:block; margin-bottom:5px;">Dimensões (Arraste para redimensionar)</label>
+                        <label style="font-size: 11px; opacity: 0.7; display:block; margin-bottom:5px;">Dimensões
+                            (Arraste para redimensionar)</label>
                         <div style="display: flex; gap: 10px;">
                             <div style="flex:1">
                                 <span style="font-size:10px; opacity:0.5">W</span>
-                                <input type="number" id="ve-width" class="admin-input" oninput="window.updateVisualEditorFromInputs()">
+                                <input type="number" id="ve-width" class="admin-input"
+                                    oninput="window.updateVisualEditorFromInputs()">
                             </div>
                             <div style="flex:1">
                                 <span style="font-size:10px; opacity:0.5">H</span>
-                                <input type="number" id="ve-height" class="admin-input" oninput="window.updateVisualEditorFromInputs()">
+                                <input type="number" id="ve-height" class="admin-input"
+                                    oninput="window.updateVisualEditorFromInputs()">
                             </div>
                         </div>
                     </div>
 
                     <div style="margin-bottom: 20px;">
-                        <label style="font-size: 11px; opacity: 0.7; display:block; margin-bottom:5px;">Botão Fechar</label>
+                        <label style="font-size: 11px; opacity: 0.7; display:block; margin-bottom:5px;">Botão
+                            Fechar</label>
                         <div style="margin-bottom: 10px;">
                             <span style="font-size: 10px;">Tamanho (<span id="ve-close-size-val">24</span>px)</span>
-                            <input type="range" id="ve-close-size" min="16" max="48" value="24" style="width:100%" oninput="window.updateVisualEditorFromInputs()">
+                            <input type="range" id="ve-close-size" min="16" max="48" value="24" style="width:100%"
+                                oninput="window.updateVisualEditorFromInputs()">
                         </div>
                         <div style="display:flex; align-items:center; justify-content:space-between;">
                             <span style="font-size: 10px;">Cor do Ícone</span>
-                            <input type="color" id="ve-close-color" value="#000000" style="width: 30px; height: 30px; border:none; cursor:pointer;" oninput="window.updateVisualEditorFromInputs()">
+                            <input type="color" id="ve-close-color" value="#000000"
+                                style="width: 30px; height: 30px; border:none; cursor:pointer;"
+                                oninput="window.updateVisualEditorFromInputs()">
                         </div>
                     </div>
 
-                     <div style="margin-bottom: 20px;">
-                        <label style="font-size: 11px; opacity: 0.7; display:block; margin-bottom:5px;">Mídia / iFrame</label>
+                    <div style="margin-bottom: 20px;">
+                        <label style="font-size: 11px; opacity: 0.7; display:block; margin-bottom:5px;">Mídia /
+                            iFrame</label>
                         <span style="font-size: 10px;">Altura Fixa (px) - Opcional</span>
-                         <input type="number" id="ve-media-height" placeholder="Auto" class="admin-input" oninput="window.updateVisualEditorFromInputs()">
+                        <input type="number" id="ve-media-height" placeholder="Auto" class="admin-input"
+                            oninput="window.updateVisualEditorFromInputs()">
                     </div>
 
                     <div style="margin-top: auto;">
-                        <button onclick="window.applyVisualEditor()" style="width: 100%; padding: 12px; background: var(--success-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:8px;">
+                        <button onclick="window.applyVisualEditor()"
+                            style="width: 100%; padding: 12px; background: var(--success-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:8px;">
                             <i class="fas fa-check"></i> Aplicar Alterações
                         </button>
                     </div>
