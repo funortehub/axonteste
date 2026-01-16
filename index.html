@@ -5480,12 +5480,12 @@
 
             <div class="user-info-body-v2" id="user-info-body">
                 <div class="user-info-row-v2">
-                    <span class="row-label-v2">Endereço de Email</span>
+                    <span class="row-label-v2">Email:</span>
                     <span id="user-info-email" class="row-value-v2">-</span>
                 </div>
 
                 <div class="user-info-row-v2">
-                    <span class="row-label-v2">Membro Desde</span>
+                    <span class="row-label-v2">Membro Desde:</span>
                     <span id="user-info-created" class="row-value-v2">-</span>
                 </div>
 
@@ -5852,6 +5852,9 @@
                         display: grid;
                         grid-template-columns: 1fr 1fr;
                         gap: 20px;
+                        width: 100%;
+                        max-width: 100%;
+                        box-sizing: border-box;
                     }
 
                     .alert-form-section {
@@ -16257,14 +16260,23 @@ ${instruction}
         // Apply to Stage Container
         stage.style.width = w + 'px';
         stage.style.height = h ? h + 'px' : 'auto';
-        stage.style.background = 'white';
-        stage.style.borderRadius = '8px';
-        stage.style.padding = '20px';
+        stage.style.background = 'rgba(255, 255, 255, 0.85)';
+        stage.style.backdropFilter = 'blur(32px) saturate(180%)';
+        stage.style.webkitBackdropFilter = 'blur(32px) saturate(180%)';
+        stage.style.borderRadius = '24px';
+        stage.style.padding = '0 30px 20px'; // Matched padding logic (header has padding, content has padding)
+        // Wait, real alert splits padding. Header is separate. 
+        // Real Alert: .alert-view-stage { padding: 0 (overflow hidden) } .alert-content { padding: 0 30px 20px }
+        // For Editor, we used simple padding causing content shift?
+        // Let's use simple padding for now but closer to source.
+        stage.style.padding = '0'; // Reset styling to match real container
         stage.style.display = 'flex';
         stage.style.flexDirection = 'column';
         stage.style.position = 'relative';
-        stage.style.color = '#333';
-        stage.style.boxShadow = '0 10px 30px rgba(0,0,0,0.2)';
+        stage.style.color = '#1a1a1a';
+        stage.style.boxShadow = '0 20px 60px rgba(0,0,0,0.2)';
+        stage.style.fontFamily = "'Plus Jakarta Sans', sans-serif";
+        stage.style.overflow = 'hidden';
 
         // Build Inner HTML (Simulating Alert Structure)
         let mediaBlock = '';
