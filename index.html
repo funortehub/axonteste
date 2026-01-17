@@ -5584,6 +5584,26 @@
 
             <div id="tab-api" class="admin-tab-content" style="display:none">
                 <div id="admin-settings-body"></div>
+
+                <!-- Prompt Evolução -->
+                <div class="admin-section" style="margin-top: 20px;">
+                    <h3>Prompt Evolução (Anamnese I.A.)</h3>
+                    <p style="font-size: 12px; opacity: 0.7; margin-bottom: 10px;">Personalize o prompt usado pela I.A. para processar a anamnese.</p>
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-size: 12px; display: block; margin-bottom: 5px;">Modo do Prompt Customizado:</label>
+                        <select id="custom-prompt-mode" class="admin-input" style="width: 100%; padding: 8px;">
+                            <option value="ignore">Desativado (Usar somente prompt padrão)</option>
+                            <option value="replace">Substituir Prompt Padrão</option>
+                            <option value="append">Adicionar ao Prompt Padrão</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="font-size: 12px; display: block; margin-bottom: 5px;">Prompt Customizado:</label>
+                        <textarea id="custom-prompt-text" class="admin-input" rows="8" style="width: 100%; resize: vertical; font-family: monospace; font-size: 12px;" placeholder="Digite seu prompt customizado aqui..."></textarea>
+                    </div>
+                    <button id="save-custom-prompt-btn" class="app-modal-button" style="width: 100%;">Salvar Prompt</button>
+                    <div id="custom-prompt-feedback" style="margin-top: 10px; font-size: 12px; text-align: center;"></div>
+                </div>
             </div>
             <div id="tab-debug" class="admin-tab-content" style="display:none">
                 <div id="admin-debug-body"></div>
@@ -7612,7 +7632,7 @@
 
         const processAnamnesisInfo = async (info) => {
             lastAnamnesisInfo = info;
-            const prompt = `Você é um assistente médico especialista em semiologia. Sua tarefa é redigir uma anamnese médica profissional e estruturar o exame físico, organizando as informações fornecidas em seções adequadas. A anamnese deve ser bem redigida, coesa e utilizar termos médicos apropriados.
+            let prompt = `Você é um assistente médico especialista em semiologia. Sua tarefa é redigir uma anamnese médica profissional e estruturar o exame físico, organizando as informações fornecidas em seções adequadas. A anamnese deve ser bem redigida, coesa e utilizar termos médicos apropriados.
 
             Contexto da consulta atual (informações existentes):
             - QP (Queixa Principal): "${anamnesis.qp || "Nenhuma"}"
@@ -7663,6 +7683,36 @@
                    "dermatologico": "..." (ou vazio)
                }
             }`;
+
+
+            // APPLY CUSTOM PROMPT LOGIC
+            if (typeof globalSettings !== 'undefined' && globalSettings.customPrompt && globalSettings.customPrompt.mode !== 'ignore') {
+                const customText = globalSettings.customPrompt.text;
+                if (globalSettings.customPrompt.mode === 'replace') {
+                    if (customText.trim().length > 0) {
+                        prompt = customText + `
+                        
+                        Contexto da consulta atual (informações existentes):
+                        - QP: "${anamnesis.qp || "Nenhuma"}"
+                        - HMA: "${anamnesis.hma || "Nenhuma"}"
+                        - HP: "${anamnesis.hp || "Nenhuma"}"
+                        - HF: "${anamnesis.hf || "Nenhuma"}"
+                        - HPS: "${anamnesis.hps || "Nenhuma"}"
+                        - HGO: "${anamnesis.hgo || "Nenhuma"}"
+                        - HA: "${anamnesis.ha || "Nenhuma"}"
+                        - ECTOSCOPIA: "${anamnesis.ectoscopia || "Nenhuma"}"
+                        - DADOS VITAIS: "${anamnesis.dados_vitais || "Nenhuma"}"
+                        - EXAME FÍSICO (SCV, SR, SD, Derm): "${JSON.stringify(anamnesis.exame_fisico)}"
+
+                        Nova informação: "${info}"
+                        
+                        IMPORTANTE: Retorne APENAS JSON válido seguindo a estrutura de anamnese.`;
+                    }
+                } else if (globalSettings.customPrompt.mode === 'append') {
+                     prompt += `\n\nINSTRUÇÕES ADICIONAIS DO USUÁRIO:\n${customText}`;
+                }
+            }
+
             try {
                 const callTimestamp = Date.now();
                 const response = await callGeminiAPI(prompt);
@@ -8315,6 +8365,7 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                             hideStatusMessages: data.hideStatusMessages || false,
                             customTextProvider: data.customTextProvider || 'gemini',
                             customVisionProvider: data.customVisionProvider || 'gemini',
+                            customPrompt: data.customPrompt || { mode: 'ignore', text: '' },
                             pinataKeys: data.pinataKeys || [
                                 { key: "", secret: "" }
                             ],
@@ -8332,6 +8383,14 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                             }
                         };
                         window.globalSettings = globalSettings; // Sync strict reference
+
+                        if (document.getElementById('mobile-2-0-toggle')) document.getElementById('mobile-2-0-toggle').checked = globalSettings.mobile2_0_enabled;
+
+                        // Populate Custom Prompt Form
+                        if (document.getElementById('custom-prompt-mode')) {
+                            document.getElementById('custom-prompt-mode').value = globalSettings.customPrompt.mode || 'ignore';
+                            document.getElementById('custom-prompt-text').value = globalSettings.customPrompt.text || '';
+                        }
 
                         // Force Mobile 2.0 Update
                         if (typeof window.updateMobile2Layout === 'function') {
@@ -10409,6 +10468,8 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
 
                 users.sort((a, b) => b.savedCount - a.savedCount);
                 adminUsersData = users;
+                adminUsersData = users;
+                window.userListPaginationLimit = 6; // Reset on load
                 renderAdminUsersList(users);
 
             } catch (e) {
@@ -10417,13 +10478,20 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
             }
         };
 
+        window.userListPaginationLimit = 6;
+        window.currentRenderedUsersList = [];
+
         const renderAdminUsersList = (users) => {
+            window.currentRenderedUsersList = users;
             if (users.length === 0) {
                 adminUsersList.innerHTML = '<div class="info">Nenhum usuário encontrado.</div>';
                 return;
             }
 
-            adminUsersList.innerHTML = users.map(user => `
+            const limit = window.userListPaginationLimit;
+            const visibleUsers = users.slice(0, limit);
+
+            let html = visibleUsers.map(user => `
                 <div class="user-list-item" onclick="window.selectAdminUser('${user.username}')" id="user-item-${user.username}">
                     <div>
                         <span class="user-name" style="${user.isBlocked ? 'text-decoration: line-through; color: #666;' : ''}">${user.username}</span>
@@ -10435,6 +10503,17 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                     </div>
                 </div>
             `).join('');
+
+            if (users.length > limit) {
+                html += `<button onclick="window.loadMoreUsers()" class="app-modal-button" style="width:100%; margin-top:10px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2);">Carregar Mais (+6)</button>`;
+            }
+
+            adminUsersList.innerHTML = html;
+        };
+
+        window.loadMoreUsers = () => {
+            window.userListPaginationLimit += 6;
+            renderAdminUsersList(window.currentRenderedUsersList);
         };
 
         window.selectAdminUser = async (username) => {
@@ -12594,7 +12673,7 @@ ${instruction}
                 badgeEl.style.color = '#fff';
                 // Custom Icon
                 if (avatarEl) {
-                    avatarEl.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/16803/16803995.png" style="width:80%; height:80%; border-radius:50%; object-fit:cover; display:block; margin:auto;">';
+                    avatarEl.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/732/732475.png" style="width:80%; height:80%; border-radius:50%; object-fit:cover; display:block; margin:auto;">';
                 }
             } else {
                 badgeEl.textContent = 'Axon Personal';
@@ -12663,6 +12742,31 @@ ${instruction}
             e.target.value = value;
         });
         savePatientDobInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') savePatientButton.click(); });
+
+        // Save Custom Prompt Listener
+        const btnSaveCustomPrompt = document.getElementById('save-custom-prompt-btn');
+        if (btnSaveCustomPrompt) {
+            btnSaveCustomPrompt.addEventListener('click', async () => {
+                const mode = document.getElementById('custom-prompt-mode').value;
+                const text = document.getElementById('custom-prompt-text').value;
+                const feedback = document.getElementById('custom-prompt-feedback');
+
+                try {
+                    await setDoc(doc(db, "settings", "global"), {
+                        customPrompt: { mode, text }
+                    }, { merge: true });
+                    
+                    feedback.textContent = "Salvo com sucesso!";
+                    feedback.style.color = "var(--success-color)";
+                    setTimeout(() => textContent = "", 3000); // Typo fix: feedback.textContent
+                    setTimeout(() => feedback.textContent = "", 3000);
+                } catch (e) {
+                    console.error(e);
+                    feedback.textContent = "Erro ao salvar: " + e.message;
+                    feedback.style.color = "var(--error-color)";
+                }
+            });
+        }
 
         prescriptionHelperClose.addEventListener('click', closePrescriptionHelper);
         prescriptionHelperModal.addEventListener('click', (e) => {
