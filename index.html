@@ -5295,9 +5295,14 @@
                     <button class="tab-btn" id="toggle-exams">Exames</button>
                     <button class="tab-btn" id="toggle-axon-eye">Axon Eye</button>
                 </div>
-                <button class="fab-trigger" id="monitor-copy-btn" style="width:32px; height:32px; font-size:12px;">
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <button class="fab-trigger" id="monitor-reload-btn" style="width:32px; height:32px; font-size:12px;" title="Reanalisar Evolução (Corrigir)">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button class="fab-trigger" id="monitor-copy-btn" style="width:32px; height:32px; font-size:12px;">
                     <i class="fas fa-copy"></i>
                 </button>
+            </div>
             </div>
             <div class="panel-body">
                 <div id="monitor-content-wrapper">
@@ -5588,9 +5593,11 @@
                 <!-- Prompt Evolução -->
                 <div class="admin-section" style="margin-top: 20px;">
                     <h3>Prompt Evolução (Anamnese I.A.)</h3>
-                    <p style="font-size: 12px; opacity: 0.7; margin-bottom: 10px;">Personalize o prompt usado pela I.A. para processar a anamnese.</p>
+                    <p style="font-size: 12px; opacity: 0.7; margin-bottom: 10px;">Personalize o prompt usado pela I.A.
+                        para processar a anamnese.</p>
                     <div style="margin-bottom: 15px;">
-                        <label style="font-size: 12px; display: block; margin-bottom: 5px;">Modo do Prompt Customizado:</label>
+                        <label style="font-size: 12px; display: block; margin-bottom: 5px;">Modo do Prompt
+                            Customizado:</label>
                         <select id="custom-prompt-mode" class="admin-input" style="width: 100%; padding: 8px;">
                             <option value="ignore">Desativado (Usar somente prompt padrão)</option>
                             <option value="replace">Substituir Prompt Padrão</option>
@@ -5599,10 +5606,21 @@
                     </div>
                     <div style="margin-bottom: 10px;">
                         <label style="font-size: 12px; display: block; margin-bottom: 5px;">Prompt Customizado:</label>
-                        <textarea id="custom-prompt-text" class="admin-input" rows="8" style="width: 100%; resize: vertical; font-family: monospace; font-size: 12px;" placeholder="Digite seu prompt customizado aqui..."></textarea>
+                        <textarea id="custom-prompt-text" class="admin-input" rows="8"
+                            style="width: 100%; resize: vertical; font-family: monospace; font-size: 12px;"
+                            placeholder="Digite seu prompt customizado aqui..."></textarea>
                     </div>
-                    <button id="save-custom-prompt-btn" class="app-modal-button" style="width: 100%;">Salvar Prompt</button>
-                    <div id="custom-prompt-feedback" style="margin-top: 10px; font-size: 12px; text-align: center;"></div>
+                    
+                    <div style="margin-bottom: 15px; display:flex; gap:10px; font-size:12px;">
+                        <button id="show-default-prompt-btn" class="app-modal-button" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); flex:1;">Ver Prompt Padrão</button>
+                        <button id="copy-default-prompt-btn" class="app-modal-button" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); flex:1;">Copiar Prompt Padrão</button>
+                    </div>
+                    <div id="default-prompt-viewer" style="display:none; margin-bottom:15px; padding:10px; background:rgba(0,0,0,0.3); border-radius:6px; font-family:monospace; font-size:11px; white-space:pre-wrap; max-height:200px; overflow-y:auto; color:var(--text-secondary); border:1px solid rgba(255,255,255,0.1);"></div>
+
+                    <button id="save-custom-prompt-btn" class="app-modal-button" style="width: 100%;">Salvar
+                        Prompt</button>
+                    <div id="custom-prompt-feedback" style="margin-top: 10px; font-size: 12px; text-align: center;">
+                    </div>
                 </div>
             </div>
             <div id="tab-debug" class="admin-tab-content" style="display:none">
@@ -7630,29 +7648,28 @@
             throw lastError || new Error("Todas as tentativas de chaves e motores de visão falharam.");
         };
 
-        const processAnamnesisInfo = async (info) => {
-            lastAnamnesisInfo = info;
-            let prompt = `Você é um assistente médico especialista em semiologia. Sua tarefa é redigir uma anamnese médica profissional e estruturar o exame físico, organizando as informações fornecidas em seções adequadas. A anamnese deve ser bem redigida, coesa e utilizar termos médicos apropriados.
+        const generateAnamnesisPrompt = (anamnesisData, infoText) => {
+            return `Você é um assistente médico especialista em semiologia. Sua tarefa é redigir uma anamnese médica profissional e estruturar o exame físico, organizando as informações fornecidas em seções adequadas. A anamnese deve ser bem redigida, coesa e utilizar termos médicos apropriados.
 
             Contexto da consulta atual (informações existentes):
-            - QP (Queixa Principal): "${anamnesis.qp || "Nenhuma"}"
-            - HMA (História da Moléstia Atual): "${anamnesis.hma || "Nenhuma"}"
-            - HP (História Patológica): "${anamnesis.hp || "Nenhuma"}"
-            - HF (História Familiar): "${anamnesis.hf || "Nenhuma"}"
-            - HPS (História Psicossocial): "${anamnesis.hps || "Nenhuma"}"
-            - HGO (História Gineco-obstétrica): "${anamnesis.hgo || "Nenhuma"}"
-            - HA (História Alimentar): "${anamnesis.ha || "Nenhuma"}"
+            - QP (Queixa Principal): "${anamnesisData.qp || "Nenhuma"}"
+            - HMA (História da Moléstia Atual): "${anamnesisData.hma || "Nenhuma"}"
+            - HP (História Patológica): "${anamnesisData.hp || "Nenhuma"}"
+            - HF (História Familiar): "${anamnesisData.hf || "Nenhuma"}"
+            - HPS (História Psicossocial): "${anamnesisData.hps || "Nenhuma"}"
+            - HGO (História Gineco-obstétrica): "${anamnesisData.hgo || "Nenhuma"}"
+            - HA (História Alimentar): "${anamnesisData.ha || "Nenhuma"}"
             
-            - ECTOSCOPIA: "${anamnesis.ectoscopia || "Nenhuma"}"
-            - DADOS VITAIS: "${anamnesis.dados_vitais || "Nenhuma"}"
+            - ECTOSCOPIA: "${anamnesisData.ectoscopia || "Nenhuma"}"
+            - DADOS VITAIS: "${anamnesisData.dados_vitais || "Nenhuma"}"
 
             - EXAME FÍSICO:
-              -- SCV (Cardiovascular): "${anamnesis.exame_fisico?.scv || "Nenhuma"}"
-              -- SR (Respiratório): "${anamnesis.exame_fisico?.sr || "Nenhuma"}"
-              -- SD (Digestivo): "${anamnesis.exame_fisico?.sd || "Nenhuma"}"
-              -- Dermatológico: "${anamnesis.exame_fisico?.dermatologico || "Nenhuma"}"
+              -- SCV (Cardiovascular): "${anamnesisData.exame_fisico?.scv || "Nenhuma"}"
+              -- SR (Respiratório): "${anamnesisData.exame_fisico?.sr || "Nenhuma"}"
+              -- SD (Digestivo): "${anamnesisData.exame_fisico?.sd || "Nenhuma"}"
+              -- Dermatológico: "${anamnesisData.exame_fisico?.dermatologico || "Nenhuma"}"
 
-            Nova informação recebida (diálogo médico-paciente): "${info}"
+            Nova informação recebida (diálogo médico-paciente): "${infoText}"
 
             Instruções cruciais:
             1.  **Analise o contexto completo**: Considere tanto as informações existentes quanto a "nova informação recebida" para construir a anamnese mais precisa.
@@ -7683,6 +7700,11 @@
                    "dermatologico": "..." (ou vazio)
                }
             }`;
+        };
+
+        const processAnamnesisInfo = async (info) => {
+            lastAnamnesisInfo = info;
+            let prompt = generateAnamnesisPrompt(anamnesis, info);
 
 
             // APPLY CUSTOM PROMPT LOGIC
@@ -7709,7 +7731,7 @@
                         IMPORTANTE: Retorne APENAS JSON válido seguindo a estrutura de anamnese.`;
                     }
                 } else if (globalSettings.customPrompt.mode === 'append') {
-                     prompt += `\n\nINSTRUÇÕES ADICIONAIS DO USUÁRIO:\n${customText}`;
+                    prompt += `\n\nINSTRUÇÕES ADICIONAIS DO USUÁRIO:\n${customText}`;
                 }
             }
 
@@ -11993,6 +12015,60 @@ ${instruction}
 
         commandInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') processCommand(commandInput.value); });
         monitorCopyBtn.addEventListener('click', copyMonitorContent);
+
+        // Monitor Reload Logic
+        const monitorReloadBtn = document.getElementById('monitor-reload-btn');
+        if (monitorReloadBtn) {
+            monitorReloadBtn.addEventListener('click', () => {
+                if (typeof window.reanalyzeAnamnesis === 'function') window.reanalyzeAnamnesis();
+            });
+        }
+
+        window.reanalyzeAnamnesis = async () => {
+             const feedback = document.querySelector('#anamnesis-preview .info'); 
+             if (!lastAnamnesisInfo) {
+                 if (feedback) feedback.textContent = "Nenhuma informação para reanalisar.";
+                 return;
+             }
+             // Show loading state
+             if (feedback) feedback.innerText = "Reanalisando evolução... aguarde.";
+             try {
+                 await processAnamnesisInfo(lastAnamnesisInfo);
+             } catch (e) {
+                 console.error(e);
+                 if (feedback) feedback.textContent = "Erro ao reanalisar: " + e.message;
+             }
+        };
+
+        // Admin Default Prompt Logic
+        const showDefaultPromptBtn = document.getElementById('show-default-prompt-btn');
+        const copyDefaultPromptBtn = document.getElementById('copy-default-prompt-btn');
+        const defaultPromptViewer = document.getElementById('default-prompt-viewer');
+        
+        if (showDefaultPromptBtn) {
+             showDefaultPromptBtn.addEventListener('click', () => {
+                 const prompt = generateAnamnesisPrompt({}, '[NOVA INFORMAÇÃO ENTRA AQUI]');
+                 defaultPromptViewer.textContent = prompt;
+                 defaultPromptViewer.style.display = defaultPromptViewer.style.display === 'none' ? 'block' : 'none';
+                 showDefaultPromptBtn.textContent = defaultPromptViewer.style.display === 'block' ? 'Ocultar Prompt Padrão' : 'Ver Prompt Padrão';
+             });
+        }
+        
+        if (copyDefaultPromptBtn) {
+            copyDefaultPromptBtn.addEventListener('click', async () => {
+                 const prompt = generateAnamnesisPrompt({}, '[NOVA INFORMAÇÃO ENTRA AQUI]');
+                 try {
+                    await navigator.clipboard.writeText(prompt);
+                    const originalText = copyDefaultPromptBtn.textContent;
+                    copyDefaultPromptBtn.textContent = "Copiado!";
+                    setTimeout(() => copyDefaultPromptBtn.textContent = originalText, 2000);
+                 } catch (err) {
+                    console.error('Failed to copy: ', err);
+                    copyDefaultPromptBtn.textContent = "Erro!";
+                    setTimeout(() => copyDefaultPromptBtn.textContent = "Copiar Prompt Padrão", 2000);
+                 }
+            });
+        }
         logoutButton.addEventListener('click', logoutUser);
         settingsButton.addEventListener('click', openAdminAuth);
         themeToggleButton.addEventListener('click', toggleTheme);
@@ -12755,7 +12831,7 @@ ${instruction}
                     await setDoc(doc(db, "settings", "global"), {
                         customPrompt: { mode, text }
                     }, { merge: true });
-                    
+
                     feedback.textContent = "Salvo com sucesso!";
                     feedback.style.color = "var(--success-color)";
                     setTimeout(() => textContent = "", 3000); // Typo fix: feedback.textContent
