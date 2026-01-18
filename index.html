@@ -6492,7 +6492,7 @@
     <script type="module">import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, doc, getDoc, setDoc, updateDoc, deleteDoc, getDocs, where, increment, writeBatch, collectionGroup, deleteField } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+        import { getDatabase, ref, push, set, onValue, onChildAdded } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyA4bis9CVQkl1eJDfezsvUKTx1X_kFVT4M",
@@ -8109,6 +8109,74 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
 
         const setupTransferListener = (username) => {
             if (unsubscribeTransfer) unsubscribeTransfer();
+
+            // Data Saver: RTDB Listener
+            if (globalSettings.enableDataSaver && window.rtdb) {
+                const safeUser = username.replace(/[.#$/\[\]]/g, '_');
+                const transfersRef = ref(window.rtdb, `sessions/${safeUser}/transfers`);
+                
+                // onChildAdded behaves similarly to document added
+                unsubscribeTransfer = onChildAdded(transfersRef, (snapshot) => {
+                     const data = snapshot.val();
+                     const key = snapshot.key;
+                     // Add ID to data if needed, though mostly usage relies on content
+                     
+                     // Ignora arquivos enviados por mim mesmo
+                    if (data.senderId === deviceId) return;
+
+                    if (data.status === 'complete') {
+                            transferNotification.style.display = 'flex';
+                            if (isMobile) transferNotification.classList.add('mobile-center');
+
+                            if (data.type === 'pinata') {
+                                transferNotificationText.textContent = `Baixando ${data.filename} via Axon Share Pro...`;
+                                fetch(`https://gateway.pinata.cloud/ipfs/${data.ipfsHash}`)
+                                    .then(res => {
+                                        if(!res.ok) throw new Error("Falha IPFS");
+                                        return res.blob();
+                                    })
+                                    .then(blob => {
+                                        const downloadUrl = window.URL.createObjectURL(blob);
+                                        const link = document.createElement('a');
+                                        link.href = downloadUrl;
+                                        link.download = data.filename;
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                        window.URL.revokeObjectURL(downloadUrl);
+                                        transferNotificationText.textContent = "Concluído!";
+                                        transferNotificationProgress.style.width = '100%';
+                                        setTimeout(() => transferNotification.style.display = 'none', 3000);
+                                    })
+                                    .catch(err => {
+                                        transferNotificationText.textContent = "Erro: " + err.message;
+                                        transferNotificationText.style.color = "var(--error-color)";
+                                    });
+
+                            } else {
+                                // Small file in RTDB (Base64)
+                                transferNotificationText.textContent = `Recebendo ${data.filename}...`;
+                                transferNotificationProgress.style.width = '50%';
+                                
+                                const downloadUrl = data.data; // Base64 Data URI
+                                const link = document.createElement('a');
+                                link.href = downloadUrl;
+                                link.download = data.filename;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+
+                                transferNotificationText.textContent = "Concluído!";
+                                transferNotificationProgress.style.width = '100%';
+                                setTimeout(() => transferNotification.style.display = 'none', 3000);
+                            }
+                        }
+                });
+
+                return;
+            }
+
+            // Firestore Fallback (Original Logic)
             const transfersRef = collection(db, "sessions", username, "transfers");
             unsubscribeTransfer = onSnapshot(transfersRef, (snapshot) => {
                 snapshot.docChanges().forEach(async (change) => {
@@ -8155,9 +8223,9 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                                     // Receiver triggers the unpin via a signal back or if keys allow, unpin directly.
                                     // Since we have keys on client (as per user request), we can unpin from here too or ask sender.
                                     // Let's try unpinning directly since we share the keys.
-                                    await unpinFromPinata(data.ipfsHash);
+                                    // await unpinFromPinata(data.ipfsHash);
 
-                                    await deleteDoc(change.doc.ref);
+                                    // await deleteDoc(change.doc.ref);
 
                                 } catch (e) {
                                     console.error("Erro download Pinata:", e);
@@ -17746,14 +17814,33 @@ ${instruction}
                             try {
                                 const userEmail = user.email || (typeof currentUser !== 'undefined' ? currentUser : null);
                                 if (userEmail) {
-                                    desktopListenerUnsubscribe = onSnapshot(doc(db, "sessions", userEmail), (docSnap) => {
-                                        if (docSnap.exists()) {
-                                            const data = docSnap.data();
-                                            if (data && data.desktopConnection) {
-                                                updateConnectionStatus(data.desktopConnection);
+                                    
+                                     // Data Saver: RTDB Listener for Mobile Status
+                                     if (globalSettings.enableDataSaver && window.rtdb) {
+                                         const safeUser = userEmail.replace(/[.#$/\[\]]/g, '_');
+                                         desktopListenerUnsubscribe = onValue(ref(window.rtdb, `sessions/${safeUser}`), (snapshot) => {
+                                             const data = snapshot.val();
+                                             // Adapt RTDB data for updateConnectionStatus
+                                             if (data && data.desktopConnection) {
+                                                  // Fix timestamp adaptation
+                                                  const connData = { ...data.desktopConnection };
+                                                  if (typeof connData.timestamp === 'string') {
+                                                      const ts = new Date(connData.timestamp);
+                                                      connData.timestamp = { toDate: () => ts };
+                                                  }
+                                                  updateConnectionStatus(connData);
+                                             }
+                                         });
+                                     } else {
+                                        desktopListenerUnsubscribe = onSnapshot(doc(db, "sessions", userEmail), (docSnap) => {
+                                            if (docSnap.exists()) {
+                                                const data = docSnap.data();
+                                                if (data && data.desktopConnection) {
+                                                    updateConnectionStatus(data.desktopConnection);
+                                                }
                                             }
-                                        }
-                                    });
+                                        });
+                                     }
                                 }
                             } catch (e) { console.error("[MobileFX] Status listener setup error:", e); }
                         }
