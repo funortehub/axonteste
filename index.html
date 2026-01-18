@@ -6492,7 +6492,7 @@
     <script type="module">import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, doc, getDoc, setDoc, updateDoc, deleteDoc, getDocs, where, increment, writeBatch, collectionGroup, deleteField } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getDatabase, ref, push, set, onValue, onChildAdded } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+        import { getDatabase, ref, push, set, onValue, onChildAdded, remove } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyA4bis9CVQkl1eJDfezsvUKTx1X_kFVT4M",
@@ -8151,6 +8151,10 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                                     .catch(err => {
                                         transferNotificationText.textContent = "Erro: " + err.message;
                                         transferNotificationText.style.color = "var(--error-color)";
+                                    })
+                                    .finally(() => {
+                                         // Clean up RTDB node to prevent re-download
+                                         remove(ref(window.rtdb, `sessions/${safeUser}/transfers/${key}`)).catch(e => console.error("Auto-cleanup failed:", e));
                                     });
 
                             } else {
@@ -8169,6 +8173,9 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                                 transferNotificationText.textContent = "Concluído!";
                                 transferNotificationProgress.style.width = '100%';
                                 setTimeout(() => transferNotification.style.display = 'none', 3000);
+                                
+                                // Clean up RTDB node to prevent re-download
+                                remove(ref(window.rtdb, `sessions/${safeUser}/transfers/${key}`)).catch(e => console.error("Auto-cleanup failed:", e));
                             }
                         }
                 });
