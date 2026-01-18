@@ -5296,13 +5296,14 @@
                     <button class="tab-btn" id="toggle-axon-eye">Axon Eye</button>
                 </div>
                 <div style="display:flex; align-items:center; gap:5px;">
-                    <button class="fab-trigger" id="monitor-reload-btn" style="width:32px; height:32px; font-size:12px;" title="Reanalisar Evolução (Corrigir)">
+                    <button class="fab-trigger" id="monitor-reload-btn" style="width:32px; height:32px; font-size:12px;"
+                        title="Reanalisar Evolução (Corrigir)">
                         <i class="fas fa-sync-alt"></i>
                     </button>
                     <button class="fab-trigger" id="monitor-copy-btn" style="width:32px; height:32px; font-size:12px;">
-                    <i class="fas fa-copy"></i>
-                </button>
-            </div>
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
             </div>
             <div class="panel-body">
                 <div id="monitor-content-wrapper">
@@ -5610,12 +5611,18 @@
                             style="width: 100%; resize: vertical; font-family: monospace; font-size: 12px;"
                             placeholder="Digite seu prompt customizado aqui..."></textarea>
                     </div>
-                    
+
                     <div style="margin-bottom: 15px; display:flex; gap:10px; font-size:12px;">
-                        <button id="show-default-prompt-btn" class="app-modal-button" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); flex:1;">Ver Prompt Padrão</button>
-                        <button id="copy-default-prompt-btn" class="app-modal-button" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); flex:1;">Copiar Prompt Padrão</button>
+                        <button id="show-default-prompt-btn" class="app-modal-button"
+                            style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); flex:1;">Ver
+                            Prompt Padrão</button>
+                        <button id="copy-default-prompt-btn" class="app-modal-button"
+                            style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); flex:1;">Copiar
+                            Prompt Padrão</button>
                     </div>
-                    <div id="default-prompt-viewer" style="display:none; margin-bottom:15px; padding:10px; background:rgba(0,0,0,0.3); border-radius:6px; font-family:monospace; font-size:11px; white-space:pre-wrap; max-height:200px; overflow-y:auto; color:var(--text-secondary); border:1px solid rgba(255,255,255,0.1);"></div>
+                    <div id="default-prompt-viewer"
+                        style="display:none; margin-bottom:15px; padding:10px; background:rgba(0,0,0,0.3); border-radius:6px; font-family:monospace; font-size:11px; white-space:pre-wrap; max-height:200px; overflow-y:auto; color:var(--text-secondary); border:1px solid rgba(255,255,255,0.1);">
+                    </div>
 
                     <button id="save-custom-prompt-btn" class="app-modal-button" style="width: 100%;">Salvar
                         Prompt</button>
@@ -6485,6 +6492,7 @@
     <script type="module">import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, doc, getDoc, setDoc, updateDoc, deleteDoc, getDocs, where, increment, writeBatch, collectionGroup, deleteField } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyA4bis9CVQkl1eJDfezsvUKTx1X_kFVT4M",
@@ -6497,9 +6505,14 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const rtdb = getDatabase(app);
 
         // Expose to window for external scripts (Mobile 2.0 IIFE)
         window.db = db;
+        window.rtdb = rtdb;
+        window.rtdbRef = ref; // Expose RTDB Ref
+        window.rtdbPush = push; // Expose RTDB Push
+        window.rtdbSet = set; // Expose RTDB Set
         window.deleteDoc = deleteDoc;
         window.addDoc = addDoc; // Exposed for Alert System
         window.doc = doc;
@@ -6510,6 +6523,22 @@
         window.onSnapshot = onSnapshot;
         window.setDoc = setDoc;
         window.getDoc = getDoc;
+
+        // RTDB Helper
+        window.saveToRTDB = async (path, data) => {
+            if (!window.rtdb) {
+                console.warn("RTDB not initialized");
+                // Fallback to Firestore? No, Data Saver implies we want to avoid FS.
+                return;
+            }
+            try {
+                const newRef = window.rtdbPush(window.rtdbRef(window.rtdb, path));
+                await window.rtdbSet(newRef, data);
+                return newRef;
+            } catch (e) {
+                console.error("Error writing to RTDB:", e);
+            }
+        };
         window.updateDoc = updateDoc;
         window.deleteField = deleteField;
 
@@ -8401,8 +8430,11 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                             bridgePermissions: data.bridgePermissions || {
                                 sendToChat: true,
                                 sendToAnamnesis: true,
+                                sendToChat: true,
+                                sendToAnamnesis: true,
                                 readAnamnesis: true
-                            }
+                            },
+                            enableDataSaver: data.enableDataSaver || false
                         };
                         window.globalSettings = globalSettings; // Sync strict reference
 
@@ -9685,13 +9717,28 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                 const updateDesktopStatus = () => {
                     if (isLoggedIn && currentUser) {
                         const desktopInfo = getDesktopInfo();
-                        const sessionRef = doc(db, "sessions", currentUser);
-                        setDoc(sessionRef, {
-                            desktopConnection: { ...desktopInfo, timestamp: new Date() }
-                        }, { merge: true }).catch(e => console.error("Heartbeat failed:", e));
+
+                        // Data Saver Optimization
+                        if (globalSettings.enableDataSaver && window.saveToRTDB) {
+                            const safeUser = currentUser.replace(/[.#$/\[\]]/g, '_');
+                            // Use RTDB OnDisconnect to handle offline reliably if possible, but for simplified heartbeat:
+                            window.saveToRTDB(`sessions/${safeUser}`, {
+                                desktopConnection: { ...desktopInfo, timestamp: new Date().toISOString() },
+                                lastSeen: new Date().toISOString()
+                            });
+                        } else {
+                            const sessionRef = doc(db, "sessions", currentUser);
+                            setDoc(sessionRef, {
+                                desktopConnection: { ...desktopInfo, timestamp: new Date() }
+                            }, { merge: true }).catch(e => console.error("Heartbeat failed:", e));
+                        }
                     }
                 };
                 updateDesktopStatus();
+                // If Data Saver is on, we might even reduce frequency? 
+                // User asked to OPTIMIZE to use RTDB.
+                // RTDB is cheaper for frequent small writes.
+                // Keeping 2s interval is fine with RTDB.
                 desktopHeartbeatInterval = setInterval(updateDesktopStatus, 2000);
             }
         };
@@ -10115,6 +10162,19 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                     </div>
                 </div>
                 <div class="admin-section" style="margin-top: 15px;">
+                    <div class="admin-section-title">Data Saver & Performance (Cotas)</div>
+                     <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <span>Modo Data Saver (Economia de Dados)</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggle-data-saver">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                     <div style="font-size: 11px; opacity: 0.7; margin-top: 5px; line-height: 1.4;">
+                        Redireciona logs e dados não essenciais para Realtime Database (RTDB) em vez do Firestore para evitar erros de "Quota Exceeded".
+                    </div>
+                </div>
+                <div class="admin-section" style="margin-top: 15px;">
                     <div class="admin-section-title">Backup & Restore (Firestore)</div>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <button class="app-modal-button" onclick="window.backupFirestore()">Baixar Backup (JSON)</button>
@@ -10185,6 +10245,26 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                         if (btn) btn.style.display = !newState ? 'flex' : 'none';
                     }
                 });
+
+                // Data Saver Toggle Listener
+                const toggleDataSaverBtn = document.getElementById('toggle-data-saver');
+                if (toggleDataSaverBtn) {
+                    toggleDataSaverBtn.checked = globalSettings.enableDataSaver === true;
+
+                    toggleDataSaverBtn.addEventListener('change', async (e) => {
+                        const newState = e.target.checked;
+                        try {
+                            // Optimistic Update
+                            globalSettings.enableDataSaver = newState;
+                            await setDoc(doc(db, "settings", "global"), { enableDataSaver: newState }, { merge: true });
+                        } catch (err) {
+                            console.error("Erro ao salvar Data Saver:", err);
+                            // Revert
+                            e.target.checked = !newState;
+                            globalSettings.enableDataSaver = !newState;
+                        }
+                    });
+                }
             }
 
             // Axon Eye Storage Toggle
@@ -12025,48 +12105,48 @@ ${instruction}
         }
 
         window.reanalyzeAnamnesis = async () => {
-             const feedback = document.querySelector('#anamnesis-preview .info'); 
-             if (!lastAnamnesisInfo) {
-                 if (feedback) feedback.textContent = "Nenhuma informação para reanalisar.";
-                 return;
-             }
-             // Show loading state
-             if (feedback) feedback.innerText = "Reanalisando evolução... aguarde.";
-             try {
-                 await processAnamnesisInfo(lastAnamnesisInfo);
-             } catch (e) {
-                 console.error(e);
-                 if (feedback) feedback.textContent = "Erro ao reanalisar: " + e.message;
-             }
+            const feedback = document.querySelector('#anamnesis-preview .info');
+            if (!lastAnamnesisInfo) {
+                if (feedback) feedback.textContent = "Nenhuma informação para reanalisar.";
+                return;
+            }
+            // Show loading state
+            if (feedback) feedback.innerText = "Reanalisando evolução... aguarde.";
+            try {
+                await processAnamnesisInfo(lastAnamnesisInfo);
+            } catch (e) {
+                console.error(e);
+                if (feedback) feedback.textContent = "Erro ao reanalisar: " + e.message;
+            }
         };
 
         // Admin Default Prompt Logic
         const showDefaultPromptBtn = document.getElementById('show-default-prompt-btn');
         const copyDefaultPromptBtn = document.getElementById('copy-default-prompt-btn');
         const defaultPromptViewer = document.getElementById('default-prompt-viewer');
-        
+
         if (showDefaultPromptBtn) {
-             showDefaultPromptBtn.addEventListener('click', () => {
-                 const prompt = generateAnamnesisPrompt({}, '[NOVA INFORMAÇÃO ENTRA AQUI]');
-                 defaultPromptViewer.textContent = prompt;
-                 defaultPromptViewer.style.display = defaultPromptViewer.style.display === 'none' ? 'block' : 'none';
-                 showDefaultPromptBtn.textContent = defaultPromptViewer.style.display === 'block' ? 'Ocultar Prompt Padrão' : 'Ver Prompt Padrão';
-             });
+            showDefaultPromptBtn.addEventListener('click', () => {
+                const prompt = generateAnamnesisPrompt({}, '[NOVA INFORMAÇÃO ENTRA AQUI]');
+                defaultPromptViewer.textContent = prompt;
+                defaultPromptViewer.style.display = defaultPromptViewer.style.display === 'none' ? 'block' : 'none';
+                showDefaultPromptBtn.textContent = defaultPromptViewer.style.display === 'block' ? 'Ocultar Prompt Padrão' : 'Ver Prompt Padrão';
+            });
         }
-        
+
         if (copyDefaultPromptBtn) {
             copyDefaultPromptBtn.addEventListener('click', async () => {
-                 const prompt = generateAnamnesisPrompt({}, '[NOVA INFORMAÇÃO ENTRA AQUI]');
-                 try {
+                const prompt = generateAnamnesisPrompt({}, '[NOVA INFORMAÇÃO ENTRA AQUI]');
+                try {
                     await navigator.clipboard.writeText(prompt);
                     const originalText = copyDefaultPromptBtn.textContent;
                     copyDefaultPromptBtn.textContent = "Copiado!";
                     setTimeout(() => copyDefaultPromptBtn.textContent = originalText, 2000);
-                 } catch (err) {
+                } catch (err) {
                     console.error('Failed to copy: ', err);
                     copyDefaultPromptBtn.textContent = "Erro!";
                     setTimeout(() => copyDefaultPromptBtn.textContent = "Copiar Prompt Padrão", 2000);
-                 }
+                }
             });
         }
         logoutButton.addEventListener('click', logoutUser);
@@ -12313,17 +12393,32 @@ ${instruction}
                     });
                     const ipfsHash = uploadResult.ipfsHash;
 
-                    // Create record in Firestore to signal receiver
-                    await addDoc(collection(db, "sessions", currentUser, "transfers"), {
-                        filename: file.name,
-                        fileSize: file.size,
-                        senderId: deviceId,
-                        status: "complete", // Ready for download
-                        type: 'pinata',
-                        ipfsHash: ipfsHash,
-                        pinataKey: uploadResult.pinataKey, // Save key metadata
-                        timestamp: new Date()
-                    });
+
+                    // Create record in Firestore OR RTDB (Data Saver)
+                    if (globalSettings.enableDataSaver && window.saveToRTDB) {
+                        const safeUser = currentUser.replace(/[.#$/\[\]]/g, '_');
+                        await window.saveToRTDB(`sessions/${safeUser}/transfers`, {
+                            filename: file.name,
+                            fileSize: file.size,
+                            senderId: deviceId,
+                            status: "complete",
+                            type: 'pinata',
+                            ipfsHash: ipfsHash,
+                            pinataKey: uploadResult.pinataKey,
+                            timestamp: new Date().toISOString() // RTDB prefers ISO strings or timestamps
+                        });
+                    } else {
+                        await addDoc(collection(db, "sessions", currentUser, "transfers"), {
+                            filename: file.name,
+                            fileSize: file.size,
+                            senderId: deviceId,
+                            status: "complete", // Ready for download
+                            type: 'pinata',
+                            ipfsHash: ipfsHash,
+                            pinataKey: uploadResult.pinataKey, // Save key metadata
+                            timestamp: new Date()
+                        });
+                    }
 
                     transferStatus.textContent = "Arquivo enviado com sucesso!";
                     transferStatus.style.color = "var(--success-color)";
@@ -12352,15 +12447,28 @@ ${instruction}
 
                     try {
                         if (totalSize < CHUNK_SIZE) {
-                            await addDoc(collection(db, "sessions", currentUser, "transfers"), {
-                                filename: file.name,
-                                fileSize: file.size,
-                                senderId: deviceId,
-                                status: "complete",
-                                chunkCount: 0,
-                                data: base64Data,
-                                timestamp: new Date()
-                            });
+                            if (globalSettings.enableDataSaver && window.saveToRTDB) {
+                                const safeUser = currentUser.replace(/[.#$/\[\]]/g, '_');
+                                await window.saveToRTDB(`sessions/${safeUser}/transfers`, {
+                                    filename: file.name,
+                                    fileSize: file.size,
+                                    senderId: deviceId,
+                                    status: "complete",
+                                    chunkCount: 0,
+                                    data: base64Data,
+                                    timestamp: new Date().toISOString()
+                                });
+                            } else {
+                                await addDoc(collection(db, "sessions", currentUser, "transfers"), {
+                                    filename: file.name,
+                                    fileSize: file.size,
+                                    senderId: deviceId,
+                                    status: "complete",
+                                    chunkCount: 0,
+                                    data: base64Data,
+                                    timestamp: new Date()
+                                });
+                            }
                         } else {
                             const transferRef = await addDoc(collection(db, "sessions", currentUser, "transfers"), {
                                 filename: file.name,
@@ -12696,7 +12804,18 @@ ${instruction}
             }, 30000);
 
             // Log Login
-            logInteractionToFirebase(username, "Login efetuado", "system", "login");
+            // Log Login checking Data Saver
+            if (globalSettings.enableDataSaver && window.saveToRTDB) {
+                const safeUser = username.replace(/[.#$/\[\]]/g, '_');
+                window.saveToRTDB(`logs/${safeUser}`, {
+                    action: "Login efetuado",
+                    type: "system",
+                    category: "login",
+                    timestamp: new Date().toISOString()
+                });
+            } else {
+                logInteractionToFirebase(username, "Login efetuado", "system", "login");
+            }
         };
 
         let userInfoRefreshInterval = null;
