@@ -6528,7 +6528,6 @@
         window.saveToRTDB = async (path, data) => {
             if (!window.rtdb) {
                 console.warn("RTDB not initialized");
-                // Fallback to Firestore? No, Data Saver implies we want to avoid FS.
                 return;
             }
             try {
@@ -6538,6 +6537,13 @@
             } catch (e) {
                 console.error("Error writing to RTDB:", e);
             }
+        };
+        // Specific Helper for overwrite/set (Heartbeat)
+        window.setRTDB = async (path, data) => {
+            if (!window.rtdb) return;
+            try {
+                await window.rtdbSet(window.rtdbRef(window.rtdb, path), data);
+            } catch (e) { console.error("Error setting RTDB:", e); }
         };
         window.updateDoc = updateDoc;
         window.deleteField = deleteField;
@@ -8114,70 +8120,70 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
             if (globalSettings.enableDataSaver && window.rtdb) {
                 const safeUser = username.replace(/[.#$/\[\]]/g, '_');
                 const transfersRef = ref(window.rtdb, `sessions/${safeUser}/transfers`);
-                
+
                 // onChildAdded behaves similarly to document added
                 unsubscribeTransfer = onChildAdded(transfersRef, (snapshot) => {
-                     const data = snapshot.val();
-                     const key = snapshot.key;
-                     // Add ID to data if needed, though mostly usage relies on content
-                     
-                     // Ignora arquivos enviados por mim mesmo
+                    const data = snapshot.val();
+                    const key = snapshot.key;
+                    // Add ID to data if needed, though mostly usage relies on content
+
+                    // Ignora arquivos enviados por mim mesmo
                     if (data.senderId === deviceId) return;
 
                     if (data.status === 'complete') {
-                            transferNotification.style.display = 'flex';
-                            if (isMobile) transferNotification.classList.add('mobile-center');
+                        transferNotification.style.display = 'flex';
+                        if (isMobile) transferNotification.classList.add('mobile-center');
 
-                            if (data.type === 'pinata') {
-                                transferNotificationText.textContent = `Baixando ${data.filename} via Axon Share Pro...`;
-                                fetch(`https://gateway.pinata.cloud/ipfs/${data.ipfsHash}`)
-                                    .then(res => {
-                                        if(!res.ok) throw new Error("Falha IPFS");
-                                        return res.blob();
-                                    })
-                                    .then(blob => {
-                                        const downloadUrl = window.URL.createObjectURL(blob);
-                                        const link = document.createElement('a');
-                                        link.href = downloadUrl;
-                                        link.download = data.filename;
-                                        document.body.appendChild(link);
-                                        link.click();
-                                        document.body.removeChild(link);
-                                        window.URL.revokeObjectURL(downloadUrl);
-                                        transferNotificationText.textContent = "Concluído!";
-                                        transferNotificationProgress.style.width = '100%';
-                                        setTimeout(() => transferNotification.style.display = 'none', 3000);
-                                    })
-                                    .catch(err => {
-                                        transferNotificationText.textContent = "Erro: " + err.message;
-                                        transferNotificationText.style.color = "var(--error-color)";
-                                    })
-                                    .finally(() => {
-                                         // Clean up RTDB node to prevent re-download
-                                         remove(ref(window.rtdb, `sessions/${safeUser}/transfers/${key}`)).catch(e => console.error("Auto-cleanup failed:", e));
-                                    });
+                        if (data.type === 'pinata') {
+                            transferNotificationText.textContent = `Baixando ${data.filename} via Axon Share Pro...`;
+                            fetch(`https://gateway.pinata.cloud/ipfs/${data.ipfsHash}`)
+                                .then(res => {
+                                    if (!res.ok) throw new Error("Falha IPFS");
+                                    return res.blob();
+                                })
+                                .then(blob => {
+                                    const downloadUrl = window.URL.createObjectURL(blob);
+                                    const link = document.createElement('a');
+                                    link.href = downloadUrl;
+                                    link.download = data.filename;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                    window.URL.revokeObjectURL(downloadUrl);
+                                    transferNotificationText.textContent = "Concluído!";
+                                    transferNotificationProgress.style.width = '100%';
+                                    setTimeout(() => transferNotification.style.display = 'none', 3000);
+                                })
+                                .catch(err => {
+                                    transferNotificationText.textContent = "Erro: " + err.message;
+                                    transferNotificationText.style.color = "var(--error-color)";
+                                })
+                                .finally(() => {
+                                    // Clean up RTDB node to prevent re-download
+                                    remove(ref(window.rtdb, `sessions/${safeUser}/transfers/${key}`)).catch(e => console.error("Auto-cleanup failed:", e));
+                                });
 
-                            } else {
-                                // Small file in RTDB (Base64)
-                                transferNotificationText.textContent = `Recebendo ${data.filename}...`;
-                                transferNotificationProgress.style.width = '50%';
-                                
-                                const downloadUrl = data.data; // Base64 Data URI
-                                const link = document.createElement('a');
-                                link.href = downloadUrl;
-                                link.download = data.filename;
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
+                        } else {
+                            // Small file in RTDB (Base64)
+                            transferNotificationText.textContent = `Recebendo ${data.filename}...`;
+                            transferNotificationProgress.style.width = '50%';
 
-                                transferNotificationText.textContent = "Concluído!";
-                                transferNotificationProgress.style.width = '100%';
-                                setTimeout(() => transferNotification.style.display = 'none', 3000);
-                                
-                                // Clean up RTDB node to prevent re-download
-                                remove(ref(window.rtdb, `sessions/${safeUser}/transfers/${key}`)).catch(e => console.error("Auto-cleanup failed:", e));
-                            }
+                            const downloadUrl = data.data; // Base64 Data URI
+                            const link = document.createElement('a');
+                            link.href = downloadUrl;
+                            link.download = data.filename;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+
+                            transferNotificationText.textContent = "Concluído!";
+                            transferNotificationProgress.style.width = '100%';
+                            setTimeout(() => transferNotification.style.display = 'none', 3000);
+
+                            // Clean up RTDB node to prevent re-download
+                            remove(ref(window.rtdb, `sessions/${safeUser}/transfers/${key}`)).catch(e => console.error("Auto-cleanup failed:", e));
                         }
+                    }
                 });
 
                 return;
@@ -9794,13 +9800,15 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                         const desktopInfo = getDesktopInfo();
 
                         // Data Saver Optimization
-                        if (globalSettings.enableDataSaver && window.saveToRTDB) {
+                        if (globalSettings.enableDataSaver && window.rtdb) {
                             const safeUser = currentUser.replace(/[.#$/\[\]]/g, '_');
-                            // Use RTDB OnDisconnect to handle offline reliably if possible, but for simplified heartbeat:
-                            window.saveToRTDB(`sessions/${safeUser}`, {
-                                desktopConnection: { ...desktopInfo, timestamp: new Date().toISOString() },
-                                lastSeen: new Date().toISOString()
-                            });
+                            // Use setRTDB to OVERWRITE the session node, not push a new child
+                            if (window.setRTDB) {
+                                window.setRTDB(`sessions/${safeUser}`, {
+                                    desktopConnection: { ...desktopInfo, timestamp: new Date().toISOString() },
+                                    lastSeen: new Date().toISOString()
+                                });
+                            }
                         } else {
                             const sessionRef = doc(db, "sessions", currentUser);
                             setDoc(sessionRef, {
@@ -17821,24 +17829,24 @@ ${instruction}
                             try {
                                 const userEmail = user.email || (typeof currentUser !== 'undefined' ? currentUser : null);
                                 if (userEmail) {
-                                    
-                                     // Data Saver: RTDB Listener for Mobile Status
-                                     if (globalSettings.enableDataSaver && window.rtdb) {
-                                         const safeUser = userEmail.replace(/[.#$/\[\]]/g, '_');
-                                         desktopListenerUnsubscribe = onValue(ref(window.rtdb, `sessions/${safeUser}`), (snapshot) => {
-                                             const data = snapshot.val();
-                                             // Adapt RTDB data for updateConnectionStatus
-                                             if (data && data.desktopConnection) {
-                                                  // Fix timestamp adaptation
-                                                  const connData = { ...data.desktopConnection };
-                                                  if (typeof connData.timestamp === 'string') {
-                                                      const ts = new Date(connData.timestamp);
-                                                      connData.timestamp = { toDate: () => ts };
-                                                  }
-                                                  updateConnectionStatus(connData);
-                                             }
-                                         });
-                                     } else {
+
+                                    // Data Saver: RTDB Listener for Mobile Status
+                                    if (globalSettings.enableDataSaver && window.rtdb) {
+                                        const safeUser = userEmail.replace(/[.#$/\[\]]/g, '_');
+                                        desktopListenerUnsubscribe = onValue(ref(window.rtdb, `sessions/${safeUser}`), (snapshot) => {
+                                            const data = snapshot.val();
+                                            // Adapt RTDB data for updateConnectionStatus
+                                            if (data && data.desktopConnection) {
+                                                // Fix timestamp adaptation
+                                                const connData = { ...data.desktopConnection };
+                                                if (typeof connData.timestamp === 'string') {
+                                                    const ts = new Date(connData.timestamp);
+                                                    connData.timestamp = { toDate: () => ts };
+                                                }
+                                                updateConnectionStatus(connData);
+                                            }
+                                        });
+                                    } else {
                                         desktopListenerUnsubscribe = onSnapshot(doc(db, "sessions", userEmail), (docSnap) => {
                                             if (docSnap.exists()) {
                                                 const data = docSnap.data();
@@ -17847,7 +17855,7 @@ ${instruction}
                                                 }
                                             }
                                         });
-                                     }
+                                    }
                                 }
                             } catch (e) { console.error("[MobileFX] Status listener setup error:", e); }
                         }
