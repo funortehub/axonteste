@@ -6513,6 +6513,9 @@
         window.rtdbRef = ref; // Expose RTDB Ref
         window.rtdbPush = push; // Expose RTDB Push
         window.rtdbSet = set; // Expose RTDB Set
+        window.onValue = onValue; // Expose RTDB onValue for listeners
+        window.onChildAdded = onChildAdded; // Expose RTDB onChildAdded
+        window.rtdbRemove = remove; // Expose RTDB remove
         window.deleteDoc = deleteDoc;
         window.addDoc = addDoc; // Exposed for Alert System
         window.doc = doc;
@@ -17720,15 +17723,22 @@ ${instruction}
 
             // 3. Status Updater (matching axonantigo.html style)
             const updateConnectionStatus = (desktopData) => {
-                if (!statusDot || !statusText) return;
+                // Fetch elements fresh to avoid stale references
+                const freshStatusDot = document.getElementById('mobile-status-dot');
+                const freshStatusText = document.getElementById('mobile-status-text');
+                
+                if (!freshStatusDot || !freshStatusText) {
+                    console.warn('[MobileFX] Status elements not found');
+                    return;
+                }
 
                 const isConnected = desktopData && desktopData.timestamp && (new Date() - desktopData.timestamp.toDate() < 30000);
 
                 // Update status dot classes
-                statusDot.classList.remove('status-dot-m2', 'active', 'status-on');
-                statusDot.classList.add('status-dot');
+                freshStatusDot.classList.remove('status-dot-m2', 'active', 'status-on');
+                freshStatusDot.classList.add('status-dot');
                 if (isConnected) {
-                    statusDot.classList.add('status-on');
+                    freshStatusDot.classList.add('status-on');
                 }
 
                 if (isConnected) {
@@ -17737,15 +17747,16 @@ ${instruction}
                         (desktopData.browser && desktopData.browser.toLowerCase().includes('axon'));
 
                     if (isAxon) {
-                        statusText.innerHTML = `<span class="axon-usb-badge">CONECTADO VIA UNIDADE AXON USB</span>`;
+                        freshStatusText.innerHTML = `<span class="axon-usb-badge">CONECTADO VIA UNIDADE AXON USB</span>`;
                     } else {
                         // Show detailed device info like axonantigo.html
                         const osInfo = desktopData.os || 'Desktop';
                         const browserInfo = desktopData.browser || 'Navegador';
-                        statusText.textContent = `Conectado em desktop: ${osInfo} - ${browserInfo}`;
+                        freshStatusText.textContent = `Conectado em desktop: ${osInfo} - ${browserInfo}`;
+                        console.log('[MobileFX] Updated status to:', freshStatusText.textContent);
                     }
                 } else {
-                    statusText.textContent = 'Nenhum desktop conectado';
+                    freshStatusText.textContent = 'Nenhum desktop conectado';
                 }
             };
 
@@ -17831,21 +17842,32 @@ ${instruction}
                                 if (userEmail) {
 
                                     // Data Saver: RTDB Listener for Mobile Status
-                                    if (globalSettings.enableDataSaver && window.rtdb) {
-                                        const safeUser = userEmail.replace(/[.#$/\[\]]/g, '_');
-                                        desktopListenerUnsubscribe = onValue(ref(window.rtdb, `sessions/${safeUser}`), (snapshot) => {
-                                            const data = snapshot.val();
-                                            // Adapt RTDB data for updateConnectionStatus
-                                            if (data && data.desktopConnection) {
-                                                // Fix timestamp adaptation
-                                                const connData = { ...data.desktopConnection };
-                                                if (typeof connData.timestamp === 'string') {
-                                                    const ts = new Date(connData.timestamp);
-                                                    connData.timestamp = { toDate: () => ts };
-                                                }
-                                                updateConnectionStatus(connData);
+                                    if (globalSettings.enableDataSaver) {
+                                        // Poll for RTDB functions (module loads async)
+                                        const setupRTDBListener = () => {
+                                            if (window.rtdb && window.onValue && window.rtdbRef) {
+                                                const safeUser = userEmail.replace(/[.#$/\\[\\]]/g, '_');
+                                                console.log('[MobileFX] Setting up RTDB listener for:', safeUser);
+                                                desktopListenerUnsubscribe = window.onValue(window.rtdbRef(window.rtdb, `sessions/${safeUser}`), (snapshot) => {
+                                                    const data = snapshot.val();
+                                                    console.log('[MobileFX] RTDB Data received:', data);
+                                                    // Adapt RTDB data for updateConnectionStatus
+                                                    if (data && data.desktopConnection) {
+                                                        // Fix timestamp adaptation
+                                                        const connData = { ...data.desktopConnection };
+                                                        if (typeof connData.timestamp === 'string') {
+                                                            const ts = new Date(connData.timestamp);
+                                                            connData.timestamp = { toDate: () => ts };
+                                                        }
+                                                        updateConnectionStatus(connData);
+                                                    }
+                                                });
+                                            } else {
+                                                console.log('[MobileFX] Waiting for RTDB functions...');
+                                                setTimeout(setupRTDBListener, 200);
                                             }
-                                        });
+                                        };
+                                        setupRTDBListener();
                                     } else {
                                         desktopListenerUnsubscribe = onSnapshot(doc(db, "sessions", userEmail), (docSnap) => {
                                             if (docSnap.exists()) {
@@ -17995,7 +18017,13 @@ ${instruction}
 
                                     if (user) {
                                         try {
-                                            await deleteDoc(doc(db, "sessions", user));
+                                            // Data Saver: Delete from RTDB instead of Firestore
+                                            if (globalSettings.enableDataSaver && window.rtdb && window.rtdbRemove && window.rtdbRef) {
+                                                const safeUser = user.replace(/[.#$/\[\]]/g, '_');
+                                                await window.rtdbRemove(window.rtdbRef(window.rtdb, `sessions/${safeUser}`));
+                                            } else {
+                                                await deleteDoc(doc(db, "sessions", user));
+                                            }
                                             if (statusText) statusText.textContent = "Sessão encerrada.";
                                         } catch (e) {
                                             console.error("Erro ao encerrar sessão remota:", e);
@@ -18011,7 +18039,15 @@ ${instruction}
                                     ? currentUser
                                     : (typeof firebase !== 'undefined' && firebase.auth().currentUser ? firebase.auth().currentUser.email : null);
 
-                                if (user) deleteDoc(doc(db, "sessions", user));
+                                if (user) {
+                                    // Data Saver: Delete from RTDB
+                                    if (globalSettings.enableDataSaver && window.rtdb && window.rtdbRemove && window.rtdbRef) {
+                                        const safeUser = user.replace(/[.#$/\\[\\]]/g, '_');
+                                        window.rtdbRemove(window.rtdbRef(window.rtdb, `sessions/${safeUser}`));
+                                    } else {
+                                        deleteDoc(doc(db, "sessions", user));
+                                    }
+                                }
                             }
                         }
                     });
