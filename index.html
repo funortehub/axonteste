@@ -10343,6 +10343,10 @@ Analise a(s) imagem(ns) e responda diretamente à pergunta.`;
                             // Optimistic Update
                             globalSettings.enableDataSaver = newState;
                             await setDoc(doc(db, "settings", "global"), { enableDataSaver: newState }, { merge: true });
+                            // Re-initialize transfer listener to match new Data Saver state
+                            if (currentUser && typeof setupTransferListener === 'function') {
+                                setupTransferListener(currentUser);
+                            }
                         } catch (err) {
                             console.error("Erro ao salvar Data Saver:", err);
                             // Revert
@@ -17726,7 +17730,7 @@ ${instruction}
                 // Fetch elements fresh to avoid stale references
                 const freshStatusDot = document.getElementById('mobile-status-dot');
                 const freshStatusText = document.getElementById('mobile-status-text');
-                
+
                 if (!freshStatusDot || !freshStatusText) {
                     console.warn('[MobileFX] Status elements not found');
                     return;
