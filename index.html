@@ -15067,6 +15067,8 @@ ${instruction}
                 win.id = id;
                 win.style.top = (100 + this.activeWindows.length * 20) + 'px';
                 win.style.left = (100 + this.activeWindows.length * 20) + 'px';
+                win.style.zIndex = '2147483647'; // Force on top of everything including mobile container
+
 
                 // Loading Screen Overlay
                 const loadingId = 'loading_' + id;
@@ -15125,6 +15127,12 @@ ${instruction}
                 `;
 
                 // Fix: Properly inject the bridge script into the content
+                // FALLBACK for missing content
+                if (!htmlContent) {
+                    console.warn("[PluginManager] plugin.content is empty, trying plugin.html or fallback", plugin);
+                    htmlContent = plugin.html || '<div style="color:white;padding:20px;">Conteúdo não encontrado.</div>';
+                }
+
                 htmlContent = bridgeScript + htmlContent;
 
                 const blob = new Blob([htmlContent], { type: 'text/html' });
@@ -17118,7 +17126,7 @@ ${instruction}
         }
 
         /* Aggressive Hide for Desktop Elements */
-        body.mobile-2-0-active>*:not(.mobile-2-0-wrapper):not(#mobile-debug-hud):not(script):not(style):not(#custom-confirm-modal):not(#login-modal):not(#custom-mobile-confirm-modal):not(#confirm-modal-content):not(.modal):not(.album-modal):not(#camera-container):not(.patient-list-modal):not(.patient-details-modal):not(.app-modal):not(.fullscreen-modal):not(#fullscreen-modal):not(#mobile-analysis-loader):not(.mobile-analysis-loader) {
+        body.mobile-2-0-active>*:not(.mobile-2-0-wrapper):not(#mobile-debug-hud):not(script):not(style):not(#custom-confirm-modal):not(#login-modal):not(#custom-mobile-confirm-modal):not(#confirm-modal-content):not(.modal):not(.album-modal):not(#camera-container):not(.patient-list-modal):not(.patient-details-modal):not(.app-modal):not(.fullscreen-modal):not(#fullscreen-modal):not(#mobile-analysis-loader):not(.mobile-analysis-loader):not(.floating-plugin-window) {
             display: none !important;
         }
 
@@ -17578,6 +17586,41 @@ ${instruction}
             border-radius: 50%;
             margin-left: 2px;
         }
+
+        /* Responsive Plugin Window */
+        @media (max-width: 900px) {
+            .floating-plugin-window {
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                border-radius: 0 !important;
+                border: none !important;
+                z-index: 9999999 !important;
+                /* Above everything */
+            }
+
+            .plugin-modal-content {
+                width: 100%;
+                height: 100%;
+                max-width: none;
+                border-radius: 0;
+                border: none;
+            }
+
+            .mobile-header {
+                margin-top: 40px;
+                /* Adjust for spacing */
+            }
+
+            /* FIX: Prevent monitor toggle from overlapping close button */
+            .monitor-toggle-button.active {
+                transform: scale(0.8) !important;
+                right: auto !important;
+                left: 15px !important;
+                top: 15px !important;
+            }
+        }
     </style>
 
     <!-- MOBILE 2.0 CONTAINER -->
@@ -17639,6 +17682,11 @@ ${instruction}
                 <button id="mobile-btn-transfer" class="mobile-btn">
                     <i class="fas fa-file-import"></i>
                     <span>Enviar</span>
+                </button>
+
+                <button id="mobile-btn-tools" class="mobile-btn">
+                    <i class="fas fa-cubes"></i>
+                    <span>Ferramentas</span>
                 </button>
             </div>
 
@@ -18059,6 +18107,18 @@ ${instruction}
 
                 if (btnChat) btnChat.onclick = () => safeOpen('chatbox-modal', 'flex');
                 if (btnTransfer) btnTransfer.onclick = () => safeOpen('transfer-modal', 'flex');
+
+                // Plugin Manager (Ferramentas)
+                const btnTools = document.getElementById('mobile-btn-tools');
+                if (btnTools) {
+                    btnTools.onclick = () => {
+                        if (window.axonPluginManager) {
+                            window.axonPluginManager.openManager();
+                        } else {
+                            alert("Gerenciador de plugins não inicializado.");
+                        }
+                    };
+                }
 
 
 
